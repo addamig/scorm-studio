@@ -355,6 +355,11 @@ export default function ScormStudioApp() {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // Read OpenRouter key from Vite env var (set in Vercel) or manual input
+  const envKey = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_OPENROUTER_API_KEY : '';
+
+  const effectiveKey = apiKey || envKey || '';
+
   // Detect if running inside Claude.ai artifact (no API key needed)
   const isArtifact = typeof window !== 'undefined' && (
     window.location.hostname.includes('claude') ||
@@ -362,30 +367,62 @@ export default function ScormStudioApp() {
     window.parent !== window // iframe = likely artifact
   );
 
-  // Helper: make Claude API call (works in artifact mode AND with own key)
-  const callClaude = useCallback(async (system, userMessage) => {
-    const headers = { "Content-Type": "application/json" };
-    if (apiKey && !isArtifact) {
-      headers["x-api-key"] = apiKey;
-      headers["anthropic-version"] = "2023-06-01";
-      // Use proxy-friendly approach: anthropic-dangerous-direct-browser-access
-      headers["anthropic-dangerous-direct-browser-access"] = "true";
+  // Helper: make AI call via OpenRouter (standalone) or direct Anthropic (artifact)
+  const callClaude = useCallback(async (system, userMessage, options = {}) => {
+    const { model } = options;
+
+    if (isArtifact) {
+      // Artifact mode: call Anthropic directly (auth handled by Claude.ai)
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: model || "claude-sonnet-4-20250514", max_tokens: 16000,
+          system, messages: [{ role: "user", content: userMessage }]
+        })
+      });
+      if (!response.ok) throw new Error(`API-fel (${response.status}).`);
+      return await response.json();
     }
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", headers,
+
+    // Standalone mode: use OpenRouter
+    if (!effectiveKey) throw new Error('Ange din OpenRouter API-nyckel (klicka 🔑 i headern).');
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${effectiveKey}`,
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "SCORM Studio"
+      },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", max_tokens: 16000,
-        system, messages: [{ role: "user", content: userMessage }]
+        model: model || "anthropic/claude-sonnet-4",
+        max_tokens: 16000,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userMessage }
+        ]
       })
     });
+
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Ogiltig API-nyckel. Kontrollera din nyckel och försök igen.');
+        throw new Error('Ogiltig API-nyckel. Kontrollera din OpenRouter-nyckel.');
       }
-      throw new Error(`API-fel (${response.status}).`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData?.error?.message || `API-fel (${response.status}).`);
     }
-    return await response.json();
-  }, [apiKey, isArtifact]);
+
+    const data = await response.json();
+
+    // Convert OpenRouter (OpenAI-format) response to Anthropic format
+    const text = data.choices?.[0]?.message?.content || '';
+    return {
+      content: [{ type: 'text', text }],
+      stop_reason: data.choices?.[0]?.finish_reason === 'length' ? 'max_tokens' : 'end_turn'
+    };
+  }, [effectiveKey, isArtifact]);
 
   const [systemDark, setSystemDark] = useState(true);
   useEffect(() => {
@@ -476,7 +513,7 @@ export default function ScormStudioApp() {
     setStep('generating'); setError(null); setGenProgress('Skickar till AI...');
     try {
       setGenProgress('AI analyserar din beskrivning...');
-      if (!isArtifact && !apiKey) throw new Error('Ange din API-nyckel först (klicka på nyckelsymbolen i headern).');
+      if (!isArtifact && !effectiveKey) throw new Error('Ange din OpenRouter API-nyckel (klicka 🔑 i headern).');
       const data = await callClaude(
         SYSTEM_PROMPT + "\n\nVIKTIGT: Håll kursen kompakt. Max 3 lektionsmoduler med 2-3 slides vardera. Max 8 quiz-frågor. Totalt max 12 slides. Svara med ENBART JSON.",
         `Skapa en komplett e-utbildning:\n\n${prompt}\n\nSvara ENBART med valid JSON. Börja direkt med { och sluta med }.`
@@ -704,12 +741,12 @@ export default function ScormStudioApp() {
             {!isArtifact && (
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setShowApiKey(!showApiKey)}
-                  style={{ width: 34, height: 30, borderRadius: 8, border: `1px solid ${apiKey ? t.successBorder : t.border}`,
-                    background: apiKey ? t.successBg : t.bgCard, color: apiKey ? t.successText : t.textMuted,
+                  style={{ width: 34, height: 30, borderRadius: 8, border: `1px solid ${effectiveKey ? t.successBorder : t.border}`,
+                    background: effectiveKey ? t.successBg : t.bgCard, color: effectiveKey ? t.successText : t.textMuted,
                     cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all .2s' }}
-                  title={apiKey ? 'API-nyckel konfigurerad' : 'Ange API-nyckel'}>
-                  {apiKey ? '✓' : '🔑'}
+                  title={effectiveKey ? 'API-nyckel konfigurerad' : 'Ange API-nyckel'}>
+                  {effectiveKey ? '✓' : '🔑'}
                 </button>
                 {showApiKey && (
                   <div style={{ position: 'absolute', top: 38, right: 0, background: t.bgCard,
@@ -717,14 +754,21 @@ export default function ScormStudioApp() {
                     boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.12)',
                     zIndex: 100, animation: 'fadeUp .2s ease' }}>
                     <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-                      Anthropic API-nyckel
+                      OpenRouter API-nyckel
                     </label>
-                    <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                      placeholder="sk-ant-..."
-                      style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: `1px solid ${t.borderInput}`,
-                        borderRadius: 8, background: t.bgInput, color: t.text, fontFamily: 'monospace' }} />
+                    {envKey ? (
+                      <div style={{ padding: '9px 12px', fontSize: 13, background: t.successBg, border: `1px solid ${t.successBorder}`,
+                        borderRadius: 8, color: t.successText }}>
+                        ✓ Konfigurerad via miljövariabel
+                      </div>
+                    ) : (
+                      <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                        placeholder="sk-or-..."
+                        style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: `1px solid ${t.borderInput}`,
+                          borderRadius: 8, background: t.bgInput, color: t.text, fontFamily: 'monospace' }} />
+                    )}
                     <p style={{ fontSize: 11, color: t.textMuted, marginTop: 8, lineHeight: 1.5 }}>
-                      Nyckeln sparas bara lokalt i din webbläsare under sessionen. Den skickas aldrig till någon annan server än Anthropic.
+                      {envKey ? 'Nyckeln läses från VITE_OPENROUTER_API_KEY.' : 'Hämta din nyckel på openrouter.ai/keys. Sparas bara i sessionen.'}
                     </p>
                   </div>
                 )}
