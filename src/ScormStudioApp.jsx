@@ -352,6 +352,41 @@ export default function ScormStudioApp() {
   const [aiEditing, setAiEditing] = useState(false);
   const [aiEditSuccess, setAiEditSuccess] = useState('');
 
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  // Detect if running inside Claude.ai artifact (no API key needed)
+  const isArtifact = typeof window !== 'undefined' && (
+    window.location.hostname.includes('claude') ||
+    window.location.hostname.includes('anthropic') ||
+    window.parent !== window // iframe = likely artifact
+  );
+
+  // Helper: make Claude API call (works in artifact mode AND with own key)
+  const callClaude = useCallback(async (system, userMessage) => {
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey && !isArtifact) {
+      headers["x-api-key"] = apiKey;
+      headers["anthropic-version"] = "2023-06-01";
+      // Use proxy-friendly approach: anthropic-dangerous-direct-browser-access
+      headers["anthropic-dangerous-direct-browser-access"] = "true";
+    }
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers,
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514", max_tokens: 16000,
+        system, messages: [{ role: "user", content: userMessage }]
+      })
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Ogiltig API-nyckel. Kontrollera din nyckel och försök igen.');
+      }
+      throw new Error(`API-fel (${response.status}).`);
+    }
+    return await response.json();
+  }, [apiKey, isArtifact]);
+
   const [systemDark, setSystemDark] = useState(true);
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
@@ -441,16 +476,11 @@ export default function ScormStudioApp() {
     setStep('generating'); setError(null); setGenProgress('Skickar till AI...');
     try {
       setGenProgress('AI analyserar din beskrivning...');
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 16000,
-          system: SYSTEM_PROMPT + "\n\nVIKTIGT: Håll kursen kompakt. Max 3 lektionsmoduler med 2-3 slides vardera. Max 8 quiz-frågor. Totalt max 12 slides. Svara med ENBART JSON.",
-          messages: [{ role: "user", content: `Skapa en komplett e-utbildning:\n\n${prompt}\n\nSvara ENBART med valid JSON. Börja direkt med { och sluta med }.` }]
-        })
-      });
-      if (!response.ok) throw new Error(`API-fel (${response.status}).`);
-      const data = await response.json();
+      if (!isArtifact && !apiKey) throw new Error('Ange din API-nyckel först (klicka på nyckelsymbolen i headern).');
+      const data = await callClaude(
+        SYSTEM_PROMPT + "\n\nVIKTIGT: Håll kursen kompakt. Max 3 lektionsmoduler med 2-3 slides vardera. Max 8 quiz-frågor. Totalt max 12 slides. Svara med ENBART JSON.",
+        `Skapa en komplett e-utbildning:\n\n${prompt}\n\nSvara ENBART med valid JSON. Börja direkt med { och sluta med }.`
+      );
       const wasTruncated = data.stop_reason === 'max_tokens';
       let text = '';
       if (data.content && Array.isArray(data.content)) {
@@ -502,16 +532,10 @@ export default function ScormStudioApp() {
     if (!editInput.trim() || !course || isEditing) return;
     setIsEditing(true); const instruction = editInput.trim(); setEditInput('');
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 16000,
-          system: `Du är en AI som redigerar e-utbildningar. Du får en befintlig kurs i JSON och en ändringsförfrågan. Returnera den UPPDATERADE kursen som komplett JSON. Svara ENBART med JSON. VIKTIGT: Max 3 lektionsmoduler, max 12 slides.`,
-          messages: [{ role: "user", content: `Kurs:\n${JSON.stringify(course, null, 0)}\n\nÄndring: ${instruction}\n\nReturnera JSON. Börja med {.` }]
-        })
-      });
-      if (!response.ok) throw new Error(`API-fel (${response.status})`);
-      const data = await response.json();
+      const data = await callClaude(
+        `Du är en AI som redigerar e-utbildningar. Du får en befintlig kurs i JSON och en ändringsförfrågan. Returnera den UPPDATERADE kursen som komplett JSON. Svara ENBART med JSON. VIKTIGT: Max 3 lektionsmoduler, max 12 slides.`,
+        `Kurs:\n${JSON.stringify(course, null, 0)}\n\nÄndring: ${instruction}\n\nReturnera JSON. Börja med {.`
+      );
       let text = (data.content || []).filter(c => c.type === 'text').map(c => c.text || '').join('').trim();
       text = text.replace(/^\s*```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
       let depth = 0, start = -1, end = -1;
@@ -542,16 +566,10 @@ export default function ScormStudioApp() {
     if (!aiEditPrompt.trim() || !course) return;
     setAiEditing(true); setAiEditSuccess('');
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 16000,
-          system: `Du redigerar e-utbildningar. Returnera UPPDATERAD kurs som JSON. Bara JSON, inga backticks. Max 3 lektionsmoduler, max 12 slides.`,
-          messages: [{ role: "user", content: `Kurs:\n${JSON.stringify(course, null, 0)}\n\nÄndring: ${aiEditPrompt}\n\nReturnera JSON.` }]
-        })
-      });
-      if (!response.ok) throw new Error(`API-fel (${response.status})`);
-      const data = await response.json();
+      const data = await callClaude(
+        `Du redigerar e-utbildningar. Returnera UPPDATERAD kurs som JSON. Bara JSON, inga backticks. Max 3 lektionsmoduler, max 12 slides.`,
+        `Kurs:\n${JSON.stringify(course, null, 0)}\n\nÄndring: ${aiEditPrompt}\n\nReturnera JSON.`
+      );
       let text = (data.content || []).filter(c => c.type === 'text').map(c => c.text || '').join('').trim();
       text = text.replace(/^\s*```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
       let depth = 0, start = -1, end = -1;
@@ -680,8 +698,41 @@ export default function ScormStudioApp() {
             </div>
           </div>
 
-          {/* Theme toggle */}
-          <div style={{ display: 'flex', gap: 2, background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, padding: 3 }}>
+          {/* API Key + Theme toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* API Key indicator */}
+            {!isArtifact && (
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setShowApiKey(!showApiKey)}
+                  style={{ width: 34, height: 30, borderRadius: 8, border: `1px solid ${apiKey ? t.successBorder : t.border}`,
+                    background: apiKey ? t.successBg : t.bgCard, color: apiKey ? t.successText : t.textMuted,
+                    cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all .2s' }}
+                  title={apiKey ? 'API-nyckel konfigurerad' : 'Ange API-nyckel'}>
+                  {apiKey ? '✓' : '🔑'}
+                </button>
+                {showApiKey && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, background: t.bgCard,
+                    border: `1px solid ${t.border}`, borderRadius: 12, padding: 16, width: 320,
+                    boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.12)',
+                    zIndex: 100, animation: 'fadeUp .2s ease' }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      Anthropic API-nyckel
+                    </label>
+                    <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                      placeholder="sk-ant-..."
+                      style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: `1px solid ${t.borderInput}`,
+                        borderRadius: 8, background: t.bgInput, color: t.text, fontFamily: 'monospace' }} />
+                    <p style={{ fontSize: 11, color: t.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                      Nyckeln sparas bara lokalt i din webbläsare under sessionen. Den skickas aldrig till någon annan server än Anthropic.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Theme toggle */}
+            <div style={{ display: 'flex', gap: 2, background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, padding: 3 }}>
             {[
               { mode: 'light', icon: '☀' },
               { mode: 'dark', icon: '●' },
@@ -694,6 +745,7 @@ export default function ScormStudioApp() {
                 {icon}
               </button>
             ))}
+          </div>
           </div>
         </div>
 
