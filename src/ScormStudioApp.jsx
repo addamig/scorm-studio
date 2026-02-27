@@ -181,7 +181,10 @@ function generateCourseHtml(course) {
       const illustration = generateSvgIllustration(slide, slideIndex, pColor);
       let html = '';
       if (slide.type === 'title') {
-        html = `<div class="slide-center">${illustration}<h2 class="slide-title">${esc(slide.title)}</h2><p class="slide-subtitle">${esc(slide.subtitle||'')}</p></div>`;
+        const imgHtml = slide.generated_image
+          ? `<img src="${slide.generated_image}" alt="${esc(slide.title)}" style="max-width:520px;width:100%;border-radius:12px;margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,0.1)"/>`
+          : illustration;
+        html = `<div class="slide-center">${imgHtml}<h2 class="slide-title">${esc(slide.title)}</h2><p class="slide-subtitle">${esc(slide.subtitle||'')}</p></div>`;
       } else if (slide.type === 'content') {
         let blocksHtml = '';
         for (const b of (slide.blocks||[])) {
@@ -323,7 +326,7 @@ Generera JSON med denna struktur:
 Moduler har: title, type (intro/lesson/quiz), passing_score (bara quiz), slides (array).
 
 Slide-typer:
-1. title: {type:"title", title:"", subtitle:""}
+1. title: {type:"title", title:"", subtitle:"", image_prompt:"kort bildbeskrivning på engelska för AI-bildgenerering, professionell utbildningsstil"}
 2. content: {type:"content", title:"", blocks:[{type:"text|heading|bullets|info|warning|keypoint", content:"", items:[]}]}
 3. scenario: {type:"scenario", title:"", scenario_title:"", scenario_description:"", options:[{text:"", correct:bool, feedback:""}]}
 4. summary: {type:"summary", title:"", points:[]}
@@ -357,6 +360,8 @@ export default function ScormStudioApp() {
   const [expandedMod, setExpandedMod] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [themeMode, setThemeMode] = useState('dark');
+  const [generateImages, setGenerateImages] = useState(false);
+  const [imageProgress, setImageProgress] = useState('');
   const [editInput, setEditInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editHistory, setEditHistory] = useState([]);
@@ -538,9 +543,46 @@ export default function ScormStudioApp() {
       if (!parsed.title || !parsed.modules) throw new Error('Ofullständig kurs.');
       const sel = themes[selectedTheme];
       parsed.theme = { ...parsed.theme, primary: sel.primary, primary_light: sel.primary_light, accent: sel.accent, bg: "#f8fafc", text: "#1e293b", text_muted: "#64748b", card_bg: "#ffffff", border: "#e2e8f0" };
+
+      // Generate images for title slides if enabled
+      if (generateImages && !isArtifact) {
+        const titleSlides = [];
+        for (const mod of parsed.modules) {
+          for (const slide of (mod.slides || [])) {
+            if (slide.type === 'title' && slide.image_prompt) {
+              titleSlides.push(slide);
+            }
+          }
+        }
+        if (titleSlides.length > 0) {
+          setGenProgress(`Genererar bilder (0/${titleSlides.length})...`);
+          for (let i = 0; i < titleSlides.length; i++) {
+            setGenProgress(`Genererar bild ${i + 1}/${titleSlides.length}...`);
+            try {
+              const imgResp = await fetch('/api/image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  prompt: `Create a professional, clean illustration for an e-learning course slide. Style: modern corporate training material, flat design, soft colors. Subject: ${titleSlides[i].image_prompt}. No text in the image. Landscape format 16:9.`
+                })
+              });
+              if (imgResp.ok) {
+                const imgData = await imgResp.json();
+                if (imgData.image) {
+                  titleSlides[i].generated_image = imgData.image;
+                }
+              }
+            } catch (imgErr) {
+              console.warn('Image generation failed for slide:', imgErr);
+            }
+          }
+          setGenProgress('Klar!');
+        }
+      }
+
       setCourse(parsed); setStep('review');
     } catch (err) { setError(err.message); setStep('describe'); }
-  }, [prompt, selectedTheme]);
+  }, [prompt, selectedTheme, generateImages, isArtifact, callClaude]);
 
   const handleDownloadScorm = useCallback(async () => {
     if (!course) return; setDownloading(true);
@@ -843,8 +885,27 @@ export default function ScormStudioApp() {
 
               {/* Generate button area */}
               <div style={{ padding: '0 28px 28px' }}>
+                {/* Image generation toggle */}
+                {!isArtifact && (
+                  <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button onClick={() => setGenerateImages(!generateImages)}
+                      style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                        background: generateImages ? t.accent : t.bgInput,
+                        position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                        position: 'absolute', top: 3, left: generateImages ? 23 : 3,
+                        transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </button>
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>AI-genererade bilder</span>
+                      <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 8 }}>
+                        {generateImages ? 'På — bilder skapas för intro-slides via Nano Banana' : 'Av — använder SVG-illustrationer'}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <button onClick={generateCourse} disabled={!prompt.trim()} style={btnPrimary(!prompt.trim())}>
-                  Generera utbildning →
+                  Generera utbildning {generateImages ? '(med bilder) ' : ''}→
                 </button>
               </div>
             </div>
@@ -1071,9 +1132,17 @@ export default function ScormStudioApp() {
                 {/* Title slide */}
                 {slide.type === 'title' && (
                   <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                    <div style={{ maxWidth: 300, margin: '0 auto 24px' }}>
-                      <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
-                    </div>
+                    {slide.generated_image ? (
+                      <div style={{ maxWidth: 480, margin: '0 auto 24px', borderRadius: 12, overflow: 'hidden',
+                        boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)' }}>
+                        <img src={slide.generated_image} alt={slide.title}
+                          style={{ width: '100%', height: 'auto', display: 'block' }} />
+                      </div>
+                    ) : (
+                      <div style={{ maxWidth: 300, margin: '0 auto 24px' }}>
+                        <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
+                      </div>
+                    )}
                     <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, fontWeight: 400, marginBottom: 12 }}>{slide.title}</h2>
                     <p style={{ fontSize: 16, color: t.textMuted, maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>{slide.subtitle}</p>
                   </div>
