@@ -12,10 +12,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, model } = req.body;
+    const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: 'Missing prompt in request body.' });
+      return res.status(400).json({ error: 'Missing prompt.' });
     }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -27,9 +27,9 @@ export default async function handler(req, res) {
         'X-Title': 'SCORM Studio'
       },
       body: JSON.stringify({
-        model: model || 'google/gemini-2.5-flash-image',
+        model: 'google/gemini-2.5-flash-image',
         modalities: ['image', 'text'],
-        max_tokens: 4096,
+        max_tokens: 2048,
         messages: [
           {
             role: 'user',
@@ -42,36 +42,39 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       return res.status(response.status).json({
-        error: errData?.error?.message || `OpenRouter image error (${response.status})`
+        error: errData?.error?.message || `Image API error (${response.status})`
       });
     }
 
     const data = await response.json();
 
     // Extract image from response
-    // OpenRouter returns images in the content as base64 data URLs
-    const message = data.choices?.[0]?.message;
-    let imageUrl = null;
+    let imageBase64 = null;
 
-    // Check for images array (OpenRouter image generation format)
+    const message = data.choices?.[0]?.message;
+
+    // OpenRouter returns images in a special images array as data URLs
     if (message?.images && message.images.length > 0) {
-      imageUrl = message.images[0];
+      imageBase64 = message.images[0];
     }
 
-    // Also check content for inline base64 images
-    if (!imageUrl && message?.content) {
-      // Sometimes returned as markdown with data URL
-      const match = message.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-      if (match) {
-        imageUrl = match[0];
+    // Fallback: check content parts
+    if (!imageBase64 && message?.content) {
+      if (Array.isArray(message.content)) {
+        for (const part of message.content) {
+          if (part.type === 'image_url' && part.image_url?.url) {
+            imageBase64 = part.image_url.url;
+            break;
+          }
+        }
       }
     }
 
-    if (!imageUrl) {
-      return res.status(500).json({ error: 'No image returned from model.' });
+    if (!imageBase64) {
+      return res.status(500).json({ error: 'No image in response.' });
     }
 
-    return res.status(200).json({ image: imageUrl });
+    return res.status(200).json({ image: imageBase64 });
 
   } catch (err) {
     console.error('Image proxy error:', err);
