@@ -53,12 +53,21 @@ export default async function handler(req, res) {
 
     const message = data.choices?.[0]?.message;
 
-    // OpenRouter returns images in a special images array as data URLs
+    // OpenRouter can return images in multiple formats:
+
+    // 1. images array with objects: { type: "image_url", image_url: { url: "data:..." } }
     if (message?.images && message.images.length > 0) {
-      imageBase64 = message.images[0];
+      const img = message.images[0];
+      if (typeof img === 'string') {
+        imageBase64 = img;
+      } else if (img?.image_url?.url) {
+        imageBase64 = img.image_url.url;
+      } else if (img?.url) {
+        imageBase64 = img.url;
+      }
     }
 
-    // Fallback: check content parts
+    // 2. content array with image_url parts
     if (!imageBase64 && message?.content) {
       if (Array.isArray(message.content)) {
         for (const part of message.content) {
