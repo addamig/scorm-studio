@@ -563,7 +563,7 @@ export default function ScormStudioApp() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  prompt: `Create a professional, clean illustration for an e-learning course slide. Style: modern corporate training material, flat design, soft colors. Subject: ${titleSlides[i].image_prompt}. No text in the image. Landscape format 16:9.`
+                  prompt: `Create a photorealistic, high-quality photograph for an e-learning course slide. Style: professional stock photography, natural lighting, shallow depth of field, modern workplace setting. Subject: ${titleSlides[i].image_prompt}. No text or overlays in the image. Landscape format 16:9.`
                 })
               });
               if (imgResp.ok) {
