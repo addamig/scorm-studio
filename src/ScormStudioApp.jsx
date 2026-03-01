@@ -400,6 +400,64 @@ export default function ScormStudioApp() {
   const [videoJobs, setVideoJobs] = useState(() => loadPersisted('videoJobs', []));
   const [videoStep, setVideoStep] = useState(() => loadPersisted('videoStep', ''));
 
+  // ── Saved Courses Library ──
+  const [savedCourses, setSavedCourses] = useState(() => loadPersisted('savedCourses', []));
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  // Auto-save course to library when entering review step
+  useEffect(() => {
+    if (step === 'review' && course && course.title) {
+      setSavedCourses(prev => {
+        const courseId = course.id || course.title;
+        // Update existing or add new
+        const existing = prev.findIndex(c => c.id === courseId);
+        const entry = {
+          id: courseId,
+          title: course.title,
+          description: course.description,
+          moduleCount: course.modules?.length || 0,
+          slideCount: course.modules?.reduce((sum, m) => sum + (m.slides?.length || 0), 0) || 0,
+          hasVideo: course.modules?.some(m => m.video_url) || false,
+          savedAt: new Date().toISOString(),
+          course: course,
+          videoJobs: videoJobs,
+          prompt: prompt
+        };
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = entry;
+          return updated;
+        }
+        return [entry, ...prev];
+      });
+    }
+  }, [step, course, videoJobs, prompt]);
+
+  // Persist saved courses
+  useEffect(() => {
+    try {
+      localStorage.setItem('scorm_savedCourses', JSON.stringify(savedCourses));
+    } catch { /* localStorage full */ }
+  }, [savedCourses]);
+
+  // Load a saved course
+  const loadSavedCourse = useCallback((entry) => {
+    setCourse(entry.course);
+    setVideoJobs(entry.videoJobs || []);
+    setVideoStep(entry.videoJobs?.length > 0 ? 'done' : '');
+    setPrompt(entry.prompt || '');
+    setEditHistory([]);
+    setStep('review');
+    setShowLibrary(false);
+    setShowPreview(false);
+    setPreviewSlide(0);
+  }, []);
+
+  // Delete a saved course
+  const deleteSavedCourse = useCallback((id) => {
+    setSavedCourses(prev => prev.filter(c => c.id !== id));
+  }, []);
+
   // ── Persist key state to localStorage ──
   useEffect(() => {
     try {
@@ -1007,8 +1065,18 @@ export default function ScormStudioApp() {
             </div>
           </div>
 
-          {/* AI Status + Theme toggle */}
+          {/* Library + AI Status + Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Saved courses button */}
+            {!isArtifact && savedCourses.length > 0 && (
+              <button onClick={() => setShowLibrary(!showLibrary)}
+                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  background: showLibrary ? '#7c3aed' : t.bgCard, border: `1px solid ${showLibrary ? '#7c3aed' : t.border}`,
+                  color: showLibrary ? '#fff' : t.text, cursor: 'pointer', transition: 'all .2s' }}>
+                📚 Mina kurser ({savedCourses.length})
+              </button>
+            )}
+
             {/* AI status (only show on standalone) */}
             {!isArtifact && (
               <div style={{ padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
@@ -1035,6 +1103,61 @@ export default function ScormStudioApp() {
           </div>
           </div>
         </div>
+
+        {/* ═══ COURSE LIBRARY ═══ */}
+        {showLibrary && (
+          <div style={{ marginBottom: 24, background: t.bgCard, border: `1px solid ${t.border}`,
+            borderRadius: 16, overflow: 'hidden', animation: 'fadeUp .3s ease',
+            boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.3)' : '0 4px 24px rgba(0,0,0,0.06)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${t.borderLight}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: t.text }}>
+                  Mina sparade kurser
+                </h2>
+                <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+                  {savedCourses.length} kurs{savedCourses.length !== 1 ? 'er' : ''} sparade lokalt
+                </p>
+              </div>
+              <button onClick={() => setShowLibrary(false)}
+                style={{ background: 'none', border: 'none', fontSize: 18, color: t.textMuted, cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              {savedCourses.map((entry, i) => (
+                <div key={entry.id || i} style={{ padding: '16px 24px', borderBottom: `1px solid ${t.borderLight}`,
+                  display: 'flex', alignItems: 'center', gap: 16, transition: 'background .2s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = t.bgSoft}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 4 }}>
+                      {entry.title}
+                    </div>
+                    <div style={{ fontSize: 12, color: t.textMuted, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <span>{entry.moduleCount} moduler</span>
+                      <span>{entry.slideCount} slides</span>
+                      {entry.hasVideo && <span style={{ color: '#7c3aed' }}>🎬 video</span>}
+                      <span>{new Date(entry.savedAt).toLocaleDateString('sv-SE')} {new Date(entry.savedAt).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => loadSavedCourse(entry)}
+                      style={{ padding: '8px 16px', fontSize: 12, fontWeight: 600, border: 'none',
+                        borderRadius: 8, background: t.accent, color: '#fff', cursor: 'pointer' }}>
+                      Öppna
+                    </button>
+                    <button onClick={() => {
+                        if (confirm(`Radera "${entry.title}"?`)) deleteSavedCourse(entry.id);
+                      }}
+                      style={{ padding: '8px 12px', fontSize: 12, border: `1px solid ${t.border}`,
+                        borderRadius: 8, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
