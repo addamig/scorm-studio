@@ -494,16 +494,19 @@ export default function ScormStudioApp() {
     window.parent !== window // iframe = likely artifact
   );
 
-  // ── Load shared course from URL if ?shared=...&blob=... ──
+  // ── Load shared course from URL if ?kurs=... ──
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const blobUrl = params.get('blob');
-    if (!blobUrl) return;
+    const kursId = params.get('kurs');
+    if (!kursId) return;
 
     setGenProgress('Laddar delad kurs...');
     setStep('generating');
-    fetch(blobUrl)
-      .then(r => r.json())
+    fetch(`/api/shared?id=${kursId}`)
+      .then(r => {
+        if (!r.ok) throw new Error('Kursen hittades inte.');
+        return r.json();
+      })
       .then(data => {
         if (data.course) {
           setCourse(data.course);
@@ -512,7 +515,6 @@ export default function ScormStudioApp() {
             setVideoStep('done');
           }
           setStep('review');
-          // Clean URL
           window.history.replaceState({}, '', window.location.pathname);
         } else {
           throw new Error('Ingen kurs i länken.');

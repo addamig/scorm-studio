@@ -44,8 +44,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       id,
-      url: blob.url,
-      shareUrl: `${req.headers.origin || 'https://scorm-studio-azure.vercel.app'}?shared=${id}&blob=${encodeURIComponent(blob.url)}`
+      blobUrl: blob.url,
+      shareUrl: `${req.headers.origin || 'https://scorm-studio-azure.vercel.app'}?kurs=${id}`
     });
 
   } catch (err) {
