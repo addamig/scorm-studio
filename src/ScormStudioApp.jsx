@@ -850,7 +850,7 @@ export default function ScormStudioApp() {
     setAiEditing(false);
   }, [aiEditPrompt, course]);
 
-  const allSlides = course ? course.modules.flatMap(m => (m.slides||[]).map(s => ({...s, moduleName: m.title, moduleType: m.type}))) : [];
+  const allSlides = course ? course.modules.flatMap(m => (m.slides||[]).map((s, si) => ({...s, moduleName: m.title, moduleType: m.type, moduleVideoUrl: si === 0 ? m.video_url : null}))) : [];
   const quizModule = course ? course.modules.find(m => m.type === 'quiz') : null;
   const passingScore = quizModule?.passing_score || 80;
 
@@ -1434,7 +1434,14 @@ export default function ScormStudioApp() {
                 {/* Title slide */}
                 {slide.type === 'title' && (
                   <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                    {slide.generated_image ? (
+                    {slide.moduleVideoUrl ? (
+                      <div style={{ maxWidth: 560, margin: '0 auto 24px', borderRadius: 12, overflow: 'hidden',
+                        boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)' }}>
+                        <video controls style={{ width: '100%', display: 'block' }}>
+                          <source src={slide.moduleVideoUrl} type="video/mp4" />
+                        </video>
+                      </div>
+                    ) : slide.generated_image ? (
                       <div style={{ maxWidth: 480, margin: '0 auto 24px', borderRadius: 12, overflow: 'hidden',
                         boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)' }}>
                         <img src={slide.generated_image} alt={slide.title}
