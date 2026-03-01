@@ -492,9 +492,12 @@ export default function ScormStudioApp() {
             }
           }
         }
+        console.log(`[HeyGen] Module ${originalIndex}: "${mod.title}" (${mod.type}) → script: "${script.substring(0, 50)}..."`);
         return { moduleIndex: originalIndex, title: mod.title, script: script.trim() };
       })
       .filter(m => m && m.script.length > 5);
+    
+    console.log('[HeyGen] Modules to generate videos for:', modulesWithScripts.map(m => `idx=${m.moduleIndex} "${m.title}"`).join(', '));
 
     const jobs = [];
 
@@ -579,10 +582,13 @@ export default function ScormStudioApp() {
           const updated = JSON.parse(JSON.stringify(prev)); // deep clone
           for (const job of jobs) {
             if (job.status === 'completed' && job.videoUrl && updated.modules[job.moduleIndex]) {
+              console.log(`[HeyGen] Attaching video to module ${job.moduleIndex} (${job.title}): ${job.videoUrl.substring(0, 80)}...`);
               updated.modules[job.moduleIndex].video_url = job.videoUrl;
               updated.modules[job.moduleIndex].video_duration = job.duration;
             }
           }
+          // Log final state
+          console.log('[HeyGen] Modules with video:', updated.modules.map((m, i) => `${i}:${m.title}=${m.video_url ? 'YES' : 'no'}`).join(', '));
           return updated;
         });
       }
