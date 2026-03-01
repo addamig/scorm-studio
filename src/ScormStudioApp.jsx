@@ -539,7 +539,11 @@ export default function ScormStudioApp() {
   }, [selectedAvatar, selectedVoice]);
 
   // ── HeyGen: Poll video jobs in background (runs from review screen) ──
-  const pollVideoJobs = useCallback(async (jobs, courseRef) => {
+  const courseRef = useRef(null);
+  // Keep ref in sync with state
+  useEffect(() => { courseRef.current = course; }, [course]);
+
+  const pollVideoJobs = useCallback(async (jobs) => {
     const pollInterval = 5000;
     const maxWait = 600000;
     const startTime = Date.now();
@@ -547,6 +551,7 @@ export default function ScormStudioApp() {
     while (Date.now() - startTime < maxWait) {
       await new Promise(r => setTimeout(r, pollInterval));
 
+      let anyChanged = false;
       for (const job of jobs) {
         if (job.status !== 'processing') continue;
         try {
@@ -556,28 +561,30 @@ export default function ScormStudioApp() {
             job.status = 'completed';
             job.videoUrl = data.video_url;
             job.duration = data.duration;
+            anyChanged = true;
           } else if (data.status === 'failed') {
             job.status = 'failed';
             job.error = data.error;
+            anyChanged = true;
           }
         } catch (err) { /* keep polling */ }
       }
 
       setVideoJobs([...jobs]);
 
-      // Attach completed videos to course
-      if (courseRef) {
-        let updated = false;
-        for (const job of jobs) {
-          if (job.status === 'completed' && job.videoUrl && courseRef.modules[job.moduleIndex]) {
-            if (!courseRef.modules[job.moduleIndex].video_url) {
-              courseRef.modules[job.moduleIndex].video_url = job.videoUrl;
-              courseRef.modules[job.moduleIndex].video_duration = job.duration;
-              updated = true;
+      // Deep-update course with new video URLs
+      if (anyChanged && courseRef.current) {
+        setCourse(prev => {
+          if (!prev) return prev;
+          const updated = JSON.parse(JSON.stringify(prev)); // deep clone
+          for (const job of jobs) {
+            if (job.status === 'completed' && job.videoUrl && updated.modules[job.moduleIndex]) {
+              updated.modules[job.moduleIndex].video_url = job.videoUrl;
+              updated.modules[job.moduleIndex].video_duration = job.duration;
             }
           }
-        }
-        if (updated) setCourse({ ...courseRef });
+          return updated;
+        });
       }
 
       if (jobs.every(j => j.status === 'completed' || j.status === 'failed')) {
@@ -757,7 +764,7 @@ export default function ScormStudioApp() {
         try {
           const jobs = await startVideoGeneration(parsed);
           // Start polling in background (don't await)
-          pollVideoJobs(jobs, parsed);
+          pollVideoJobs(jobs);
         } catch (err) {
           console.warn('Video generation error:', err);
         }
