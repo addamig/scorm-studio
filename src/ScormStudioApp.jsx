@@ -468,16 +468,14 @@ export default function ScormStudioApp() {
     if (!selectedAvatar || !selectedVoice || !courseData) return [];
     setVideoStep('generating');
 
-    // Build scripts from module content
+    // Build scripts from module content — keep original module index!
     const modulesWithScripts = courseData.modules
-      .filter(m => m.type !== 'quiz')
-      .map((mod, i) => {
+      .map((mod, originalIndex) => {
+        if (mod.type === 'quiz') return null; // skip quiz modules
         let script = '';
         if (testMode) {
-          // Short test script — just the title to save credits
           script = `Välkommen till modulen: ${mod.title}.`;
         } else {
-          // Full script from all slide content
           for (const slide of (mod.slides || [])) {
             if (slide.type === 'title') {
               script += `${slide.title}. ${slide.subtitle || ''} `;
@@ -494,9 +492,9 @@ export default function ScormStudioApp() {
             }
           }
         }
-        return { moduleIndex: i, title: mod.title, script: script.trim() };
+        return { moduleIndex: originalIndex, title: mod.title, script: script.trim() };
       })
-      .filter(m => m.script.length > 5);
+      .filter(m => m && m.script.length > 5);
 
     const jobs = [];
 
