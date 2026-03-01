@@ -357,20 +357,28 @@ const themes = [
 ];
 
 export default function ScormStudioApp() {
-  const [step, setStep] = useState('describe');
-  const [prompt, setPrompt] = useState('');
-  const [course, setCourse] = useState(null);
+  // ── Load persisted state from localStorage ──
+  const loadPersisted = (key, fallback) => {
+    try {
+      const saved = localStorage.getItem(`scorm_${key}`);
+      return saved ? JSON.parse(saved) : fallback;
+    } catch { return fallback; }
+  };
+
+  const [step, setStep] = useState(() => loadPersisted('step', 'describe'));
+  const [prompt, setPrompt] = useState(() => loadPersisted('prompt', ''));
+  const [course, setCourse] = useState(() => loadPersisted('course', null));
   const [error, setError] = useState(null);
   const [genProgress, setGenProgress] = useState('');
-  const [selectedTheme, setSelectedTheme] = useState(0);
+  const [selectedTheme, setSelectedTheme] = useState(() => loadPersisted('theme', 0));
   const [expandedMod, setExpandedMod] = useState(null);
   const [downloading, setDownloading] = useState(false);
-  const [themeMode, setThemeMode] = useState('dark');
+  const [themeMode, setThemeMode] = useState(() => loadPersisted('themeMode', 'dark'));
   const [generateImages, setGenerateImages] = useState(false);
   const [imageProgress, setImageProgress] = useState('');
   const [editInput, setEditInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [editHistory, setEditHistory] = useState([]);
+  const [editHistory, setEditHistory] = useState(() => loadPersisted('editHistory', []));
   const [showPreview, setShowPreview] = useState(false);
   const [previewSlide, setPreviewSlide] = useState(0);
   const [scenarioAnswers, setScenarioAnswers] = useState({});
@@ -389,8 +397,32 @@ export default function ScormStudioApp() {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [heygenLoading, setHeygenLoading] = useState(false);
   const [heygenError, setHeygenError] = useState('');
-  const [videoJobs, setVideoJobs] = useState([]); // { moduleIndex, videoId, status, videoUrl, duration }
-  const [videoStep, setVideoStep] = useState(''); // '' | 'generating' | 'done'
+  const [videoJobs, setVideoJobs] = useState(() => loadPersisted('videoJobs', []));
+  const [videoStep, setVideoStep] = useState(() => loadPersisted('videoStep', ''));
+
+  // ── Persist key state to localStorage ──
+  useEffect(() => {
+    try {
+      localStorage.setItem('scorm_step', JSON.stringify(step));
+      localStorage.setItem('scorm_prompt', JSON.stringify(prompt));
+      localStorage.setItem('scorm_theme', JSON.stringify(selectedTheme));
+      localStorage.setItem('scorm_themeMode', JSON.stringify(themeMode));
+      localStorage.setItem('scorm_editHistory', JSON.stringify(editHistory));
+      localStorage.setItem('scorm_videoJobs', JSON.stringify(videoJobs));
+      localStorage.setItem('scorm_videoStep', JSON.stringify(videoStep));
+    } catch { /* localStorage full or unavailable */ }
+  }, [step, prompt, selectedTheme, themeMode, editHistory, videoJobs, videoStep]);
+
+  // Course saved separately (can be large with base64 images)
+  useEffect(() => {
+    try {
+      if (course) {
+        localStorage.setItem('scorm_course', JSON.stringify(course));
+      } else {
+        localStorage.removeItem('scorm_course');
+      }
+    } catch { /* too large */ }
+  }, [course]);
 
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -1226,7 +1258,7 @@ export default function ScormStudioApp() {
                   <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, fontWeight: 400, marginBottom: 6, letterSpacing: '-0.01em' }}>{course.title}</h2>
                   <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.5 }}>{course.description}</p>
                 </div>
-                <button onClick={() => { setStep('describe'); setCourse(null); }} style={{ ...btnSecondary, padding: '8px 16px', fontSize: 12 }}>
+                <button onClick={() => { setStep('describe'); setCourse(null); setVideoJobs([]); setVideoStep(''); setEditHistory([]); }} style={{ ...btnSecondary, padding: '8px 16px', fontSize: 12 }}>
                   ← Börja om
                 </button>
               </div>
@@ -1429,7 +1461,7 @@ export default function ScormStudioApp() {
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={() => setStep('review')} style={btnSecondary}>← Kursöversikt</button>
-              <button onClick={() => { setStep('describe'); setCourse(null); setPrompt(''); }} style={btnPrimary(false)}>Skapa ny utbildning →</button>
+              <button onClick={() => { setStep('describe'); setCourse(null); setPrompt(''); setVideoJobs([]); setVideoStep(''); setEditHistory([]); }} style={btnPrimary(false)}>Skapa ny utbildning →</button>
             </div>
           </div>
         )}
