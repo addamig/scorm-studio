@@ -180,11 +180,17 @@ function generateCourseHtml(course) {
       const slide = mod.slides[si];
       const illustration = generateSvgIllustration(slide, slideIndex, pColor);
       let html = '';
+      // Check if this module has a video (first slide gets it)
+      const moduleHasVideo = mod.video_url && si === 0;
+
       if (slide.type === 'title') {
         const imgHtml = slide.generated_image
           ? `<img src="${slide.generated_image}" alt="${esc(slide.title)}" style="max-width:520px;width:100%;border-radius:12px;margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,0.1)"/>`
           : illustration;
-        html = `<div class="slide-center">${imgHtml}<h2 class="slide-title">${esc(slide.title)}</h2><p class="slide-subtitle">${esc(slide.subtitle||'')}</p></div>`;
+        const videoHtml = moduleHasVideo
+          ? `<div class="video-wrapper" style="margin:20px auto;max-width:720px"><video id="vid-${slideIndex}" controls style="width:100%;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15)"><source src="${mod.video_url}" type="video/mp4">Din webbläsare stöder inte video.</video></div>`
+          : '';
+        html = `<div class="slide-center">${videoHtml || imgHtml}<h2 class="slide-title">${esc(slide.title)}</h2><p class="slide-subtitle">${esc(slide.subtitle||'')}</p></div>`;
       } else if (slide.type === 'content') {
         let blocksHtml = '';
         for (const b of (slide.blocks||[])) {
@@ -375,6 +381,17 @@ export default function ScormStudioApp() {
   const [aiEditing, setAiEditing] = useState(false);
   const [aiEditSuccess, setAiEditSuccess] = useState('');
 
+  // ── HeyGen Video Avatar State ──
+  const [useVideo, setUseVideo] = useState(false);
+  const [heygenAvatars, setHeygenAvatars] = useState([]);
+  const [heygenVoices, setHeygenVoices] = useState([]);
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [heygenLoading, setHeygenLoading] = useState(false);
+  const [heygenError, setHeygenError] = useState('');
+  const [videoJobs, setVideoJobs] = useState([]); // { moduleIndex, videoId, status, videoUrl, duration }
+  const [videoStep, setVideoStep] = useState(''); // '' | 'generating' | 'done'
+
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -418,6 +435,142 @@ export default function ScormStudioApp() {
 
     return await response.json();
   }, [isArtifact]);
+
+  // ── HeyGen: Fetch avatars & voices when video mode enabled ──
+  useEffect(() => {
+    if (!useVideo || isArtifact || heygenAvatars.length > 0) return;
+    setHeygenLoading(true);
+    setHeygenError('');
+    Promise.all([
+      fetch('/api/heygen/avatars').then(r => r.json()),
+      fetch('/api/heygen/voices').then(r => r.json())
+    ]).then(([avatarData, voiceData]) => {
+      if (avatarData.error) throw new Error(avatarData.error);
+      if (voiceData.error) throw new Error(voiceData.error);
+      setHeygenAvatars(avatarData.avatars || []);
+      const svVoices = (voiceData.voices || []).filter(v =>
+        v.language?.toLowerCase().includes('swedish') || v.language?.toLowerCase().includes('sv')
+      );
+      const enVoices = (voiceData.voices || []).filter(v =>
+        v.language?.toLowerCase().includes('english') || v.language?.toLowerCase().includes('en')
+      );
+      setHeygenVoices([...svVoices, ...enVoices].slice(0, 20));
+    }).catch(err => {
+      setHeygenError(err.message || 'Kunde inte hämta HeyGen-data.');
+    }).finally(() => setHeygenLoading(false));
+  }, [useVideo, isArtifact, heygenAvatars.length]);
+
+  // ── HeyGen: Generate videos for course modules ──
+  const generateVideos = useCallback(async (courseData) => {
+    if (!selectedAvatar || !selectedVoice || !courseData) return;
+    setVideoStep('generating');
+
+    // Build scripts from module content
+    const modulesWithScripts = courseData.modules
+      .filter(m => m.type !== 'quiz')
+      .map((mod, i) => {
+        // Combine slide content into a presentation script
+        let script = '';
+        for (const slide of (mod.slides || [])) {
+          if (slide.type === 'title') {
+            script += `${slide.title}. ${slide.subtitle || ''} `;
+          } else if (slide.type === 'content') {
+            for (const block of (slide.blocks || [])) {
+              if (block.type === 'text' || block.type === 'heading' || block.type === 'keypoint') {
+                script += `${block.content} `;
+              } else if (block.type === 'bullets' && block.items) {
+                script += block.items.join('. ') + '. ';
+              }
+            }
+          } else if (slide.type === 'summary' && slide.points) {
+            script += 'Sammanfattningsvis: ' + slide.points.join('. ') + '. ';
+          }
+        }
+        return { moduleIndex: i, title: mod.title, script: script.trim() };
+      })
+      .filter(m => m.script.length > 20); // Skip empty modules
+
+    const jobs = [];
+
+    for (let i = 0; i < modulesWithScripts.length; i++) {
+      const mod = modulesWithScripts[i];
+      setGenProgress(`Startar video ${i + 1}/${modulesWithScripts.length}: ${mod.title}...`);
+
+      try {
+        const resp = await fetch('/api/heygen/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            script: mod.script,
+            avatar_id: selectedAvatar,
+            voice_id: selectedVoice
+          })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        jobs.push({
+          moduleIndex: mod.moduleIndex,
+          title: mod.title,
+          videoId: data.video_id,
+          status: 'processing',
+          videoUrl: null,
+          duration: null
+        });
+      } catch (err) {
+        jobs.push({
+          moduleIndex: mod.moduleIndex,
+          title: mod.title,
+          videoId: null,
+          status: 'failed',
+          error: err.message
+        });
+      }
+    }
+
+    setVideoJobs(jobs);
+
+    // Poll all pending jobs
+    const pending = jobs.filter(j => j.status === 'processing');
+    const pollInterval = 5000;
+    const maxWait = 600000; // 10 min
+    const startTime = Date.now();
+
+    while (pending.length > 0 && Date.now() - startTime < maxWait) {
+      await new Promise(r => setTimeout(r, pollInterval));
+
+      for (const job of pending) {
+        if (job.status !== 'processing') continue;
+        try {
+          const resp = await fetch(`/api/heygen/status?video_id=${job.videoId}`);
+          const data = await resp.json();
+
+          if (data.status === 'completed') {
+            job.status = 'completed';
+            job.videoUrl = data.video_url;
+            job.duration = data.duration;
+          } else if (data.status === 'failed') {
+            job.status = 'failed';
+            job.error = data.error;
+          }
+        } catch (err) {
+          // Keep polling
+        }
+      }
+
+      const completed = jobs.filter(j => j.status === 'completed').length;
+      const failed = jobs.filter(j => j.status === 'failed').length;
+      const total = jobs.length;
+      setGenProgress(`Renderar videor: ${completed}/${total} klara${failed ? ` (${failed} misslyckade)` : ''}...`);
+      setVideoJobs([...jobs]);
+
+      // Check if all done
+      if (jobs.every(j => j.status === 'completed' || j.status === 'failed')) break;
+    }
+
+    setVideoStep('done');
+    return jobs;
+  }, [selectedAvatar, selectedVoice]);
 
   const [systemDark, setSystemDark] = useState(true);
   useEffect(() => {
@@ -580,9 +733,30 @@ export default function ScormStudioApp() {
         }
       }
 
-      setCourse(parsed); setStep('review');
+      setCourse(parsed);
+
+      // Generate HeyGen videos if video mode is on
+      if (useVideo && selectedAvatar && selectedVoice && !isArtifact) {
+        setGenProgress('Startar videogenerering via HeyGen...');
+        try {
+          const jobs = await generateVideos(parsed);
+          // Attach video URLs to course modules
+          for (const job of (jobs || [])) {
+            if (job.status === 'completed' && job.videoUrl && parsed.modules[job.moduleIndex]) {
+              parsed.modules[job.moduleIndex].video_url = job.videoUrl;
+              parsed.modules[job.moduleIndex].video_duration = job.duration;
+            }
+          }
+          setCourse({ ...parsed });
+        } catch (err) {
+          console.warn('Video generation error:', err);
+          // Continue without videos
+        }
+      }
+
+      setStep('review');
     } catch (err) { setError(err.message); setStep('describe'); }
-  }, [prompt, selectedTheme, generateImages, isArtifact, callClaude]);
+  }, [prompt, selectedTheme, generateImages, isArtifact, callClaude, useVideo, selectedAvatar, selectedVoice, generateVideos]);
 
   const handleDownloadScorm = useCallback(async () => {
     if (!course) return; setDownloading(true);
@@ -904,8 +1078,91 @@ export default function ScormStudioApp() {
                     </div>
                   </div>
                 )}
-                <button onClick={generateCourse} disabled={!prompt.trim()} style={btnPrimary(!prompt.trim())}>
-                  Generera utbildning {generateImages ? '(med bilder) ' : ''}→
+
+                {/* Video avatar toggle */}
+                {!isArtifact && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: useVideo ? 14 : 0 }}>
+                      <button onClick={() => setUseVideo(!useVideo)}
+                        style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                          background: useVideo ? '#7c3aed' : t.bgInput,
+                          position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                          position: 'absolute', top: 3, left: useVideo ? 23 : 3,
+                          transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                      </button>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>AI-videoavatar</span>
+                        <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 8 }}>
+                          {useVideo ? 'På — HeyGen genererar video per modul' : 'Av — ingen videopresentatör'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Avatar & Voice picker */}
+                    {useVideo && (
+                      <div style={{ background: t.bgSoft, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+                        {heygenLoading && (
+                          <p style={{ fontSize: 13, color: t.textMuted }}>Hämtar avatarer och röster från HeyGen...</p>
+                        )}
+                        {heygenError && (
+                          <p style={{ fontSize: 13, color: t.errorText }}>{heygenError}</p>
+                        )}
+
+                        {!heygenLoading && !heygenError && (
+                          <>
+                            {/* Avatars */}
+                            <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em',
+                              textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Välj avatar</label>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, maxHeight: 200, overflowY: 'auto' }}>
+                              {heygenAvatars.slice(0, 12).map(a => (
+                                <button key={a.avatar_id} onClick={() => setSelectedAvatar(a.avatar_id)}
+                                  style={{ width: 80, padding: 6, border: `2px solid ${selectedAvatar === a.avatar_id ? '#7c3aed' : t.border}`,
+                                    borderRadius: 10, background: selectedAvatar === a.avatar_id ? 'rgba(124,58,237,0.08)' : t.bgCard,
+                                    cursor: 'pointer', transition: 'all .2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                  {a.preview ? (
+                                    <img src={a.preview} alt={a.name} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover' }} />
+                                  ) : (
+                                    <div style={{ width: 56, height: 56, borderRadius: 8, background: t.bgInput, display: 'flex',
+                                      alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>👤</div>
+                                  )}
+                                  <span style={{ fontSize: 10, color: t.textSecondary, textAlign: 'center',
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                                    {a.name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Voices */}
+                            <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em',
+                              textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Välj röst</label>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 150, overflowY: 'auto' }}>
+                              {heygenVoices.map(v => (
+                                <button key={v.voice_id} onClick={() => setSelectedVoice(v.voice_id)}
+                                  style={{ padding: '8px 12px', fontSize: 12, border: `1.5px solid ${selectedVoice === v.voice_id ? '#7c3aed' : t.border}`,
+                                    borderRadius: 8, background: selectedVoice === v.voice_id ? 'rgba(124,58,237,0.08)' : t.bgCard,
+                                    cursor: 'pointer', transition: 'all .2s', color: t.text }}>
+                                  <span style={{ fontWeight: 500 }}>{v.name}</span>
+                                  <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 6 }}>{v.language}</span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {heygenAvatars.length === 0 && (
+                              <p style={{ fontSize: 12, color: t.textMuted, marginTop: 8 }}>
+                                Inga avatarer hittades. Kontrollera att HEYGEN_API_KEY är konfigurerad i Vercel.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button onClick={generateCourse} disabled={!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice))} style={btnPrimary(!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice)))}>
+                  Generera utbildning {generateImages ? '(med bilder) ' : ''}{useVideo ? '(med video) ' : ''}→
                 </button>
               </div>
             </div>
