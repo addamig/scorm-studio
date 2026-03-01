@@ -461,34 +461,42 @@ export default function ScormStudioApp() {
   }, [useVideo, isArtifact, heygenAvatars.length]);
 
   // ── HeyGen: Generate videos for course modules ──
-  const generateVideos = useCallback(async (courseData) => {
-    if (!selectedAvatar || !selectedVoice || !courseData) return;
+  // NOTE: testMode = true → only says the module title (saves HeyGen credits)
+  const testMode = true;
+
+  const startVideoGeneration = useCallback(async (courseData) => {
+    if (!selectedAvatar || !selectedVoice || !courseData) return [];
     setVideoStep('generating');
 
     // Build scripts from module content
     const modulesWithScripts = courseData.modules
       .filter(m => m.type !== 'quiz')
       .map((mod, i) => {
-        // Combine slide content into a presentation script
         let script = '';
-        for (const slide of (mod.slides || [])) {
-          if (slide.type === 'title') {
-            script += `${slide.title}. ${slide.subtitle || ''} `;
-          } else if (slide.type === 'content') {
-            for (const block of (slide.blocks || [])) {
-              if (block.type === 'text' || block.type === 'heading' || block.type === 'keypoint') {
-                script += `${block.content} `;
-              } else if (block.type === 'bullets' && block.items) {
-                script += block.items.join('. ') + '. ';
+        if (testMode) {
+          // Short test script — just the title to save credits
+          script = `Välkommen till modulen: ${mod.title}.`;
+        } else {
+          // Full script from all slide content
+          for (const slide of (mod.slides || [])) {
+            if (slide.type === 'title') {
+              script += `${slide.title}. ${slide.subtitle || ''} `;
+            } else if (slide.type === 'content') {
+              for (const block of (slide.blocks || [])) {
+                if (block.type === 'text' || block.type === 'heading' || block.type === 'keypoint') {
+                  script += `${block.content} `;
+                } else if (block.type === 'bullets' && block.items) {
+                  script += block.items.join('. ') + '. ';
+                }
               }
+            } else if (slide.type === 'summary' && slide.points) {
+              script += 'Sammanfattningsvis: ' + slide.points.join('. ') + '. ';
             }
-          } else if (slide.type === 'summary' && slide.points) {
-            script += 'Sammanfattningsvis: ' + slide.points.join('. ') + '. ';
           }
         }
         return { moduleIndex: i, title: mod.title, script: script.trim() };
       })
-      .filter(m => m.script.length > 20); // Skip empty modules
+      .filter(m => m.script.length > 5);
 
     const jobs = [];
 
@@ -529,22 +537,23 @@ export default function ScormStudioApp() {
     }
 
     setVideoJobs(jobs);
+    return jobs;
+  }, [selectedAvatar, selectedVoice]);
 
-    // Poll all pending jobs
-    const pending = jobs.filter(j => j.status === 'processing');
+  // ── HeyGen: Poll video jobs in background (runs from review screen) ──
+  const pollVideoJobs = useCallback(async (jobs, courseRef) => {
     const pollInterval = 5000;
-    const maxWait = 600000; // 10 min
+    const maxWait = 600000;
     const startTime = Date.now();
 
-    while (pending.length > 0 && Date.now() - startTime < maxWait) {
+    while (Date.now() - startTime < maxWait) {
       await new Promise(r => setTimeout(r, pollInterval));
 
-      for (const job of pending) {
+      for (const job of jobs) {
         if (job.status !== 'processing') continue;
         try {
           const resp = await fetch(`/api/heygen/status?video_id=${job.videoId}`);
           const data = await resp.json();
-
           if (data.status === 'completed') {
             job.status = 'completed';
             job.videoUrl = data.video_url;
@@ -553,24 +562,33 @@ export default function ScormStudioApp() {
             job.status = 'failed';
             job.error = data.error;
           }
-        } catch (err) {
-          // Keep polling
-        }
+        } catch (err) { /* keep polling */ }
       }
 
-      const completed = jobs.filter(j => j.status === 'completed').length;
-      const failed = jobs.filter(j => j.status === 'failed').length;
-      const total = jobs.length;
-      setGenProgress(`Renderar videor: ${completed}/${total} klara${failed ? ` (${failed} misslyckade)` : ''}...`);
       setVideoJobs([...jobs]);
 
-      // Check if all done
-      if (jobs.every(j => j.status === 'completed' || j.status === 'failed')) break;
-    }
+      // Attach completed videos to course
+      if (courseRef) {
+        let updated = false;
+        for (const job of jobs) {
+          if (job.status === 'completed' && job.videoUrl && courseRef.modules[job.moduleIndex]) {
+            if (!courseRef.modules[job.moduleIndex].video_url) {
+              courseRef.modules[job.moduleIndex].video_url = job.videoUrl;
+              courseRef.modules[job.moduleIndex].video_duration = job.duration;
+              updated = true;
+            }
+          }
+        }
+        if (updated) setCourse({ ...courseRef });
+      }
 
+      if (jobs.every(j => j.status === 'completed' || j.status === 'failed')) {
+        setVideoStep('done');
+        return;
+      }
+    }
     setVideoStep('done');
-    return jobs;
-  }, [selectedAvatar, selectedVoice]);
+  }, []);
 
   const [systemDark, setSystemDark] = useState(true);
   useEffect(() => {
@@ -735,28 +753,21 @@ export default function ScormStudioApp() {
 
       setCourse(parsed);
 
-      // Generate HeyGen videos if video mode is on
+      // Kick off HeyGen videos (non-blocking — polls in background)
       if (useVideo && selectedAvatar && selectedVoice && !isArtifact) {
-        setGenProgress('Startar videogenerering via HeyGen...');
+        setGenProgress('Startar videor via HeyGen...');
         try {
-          const jobs = await generateVideos(parsed);
-          // Attach video URLs to course modules
-          for (const job of (jobs || [])) {
-            if (job.status === 'completed' && job.videoUrl && parsed.modules[job.moduleIndex]) {
-              parsed.modules[job.moduleIndex].video_url = job.videoUrl;
-              parsed.modules[job.moduleIndex].video_duration = job.duration;
-            }
-          }
-          setCourse({ ...parsed });
+          const jobs = await startVideoGeneration(parsed);
+          // Start polling in background (don't await)
+          pollVideoJobs(jobs, parsed);
         } catch (err) {
           console.warn('Video generation error:', err);
-          // Continue without videos
         }
       }
 
       setStep('review');
     } catch (err) { setError(err.message); setStep('describe'); }
-  }, [prompt, selectedTheme, generateImages, isArtifact, callClaude, useVideo, selectedAvatar, selectedVoice, generateVideos]);
+  }, [prompt, selectedTheme, generateImages, isArtifact, callClaude, useVideo, selectedAvatar, selectedVoice, startVideoGeneration, pollVideoJobs]);
 
   const handleDownloadScorm = useCallback(async () => {
     if (!course) return; setDownloading(true);
@@ -1247,6 +1258,40 @@ export default function ScormStudioApp() {
                   </div>
                 ))}
               </div>
+
+              {/* Video Generation Status */}
+              {videoJobs.length > 0 && (
+                <div style={{ margin: '24px 28px 0', borderTop: `1px solid ${t.borderLight}`, paddingTop: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#7c3aed', letterSpacing: '0.04em', textTransform: 'uppercase' }}>🎬 Videor</span>
+                    <span style={{ fontSize: 12, color: t.textDim }}>—</span>
+                    <span style={{ fontSize: 12, color: t.textMuted }}>
+                      {videoStep === 'done'
+                        ? `${videoJobs.filter(j => j.status === 'completed').length}/${videoJobs.length} klara`
+                        : 'renderar...'}
+                    </span>
+                  </div>
+                  {videoJobs.map((job, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+                      padding: '8px 12px', background: t.bgSoft, borderRadius: 8, border: `1px solid ${t.borderLight}` }}>
+                      <span style={{ fontSize: 16 }}>
+                        {job.status === 'completed' ? '✅' : job.status === 'failed' ? '❌' : '⏳'}
+                      </span>
+                      <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{job.title}</span>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        {job.status === 'completed' ? `${job.duration}s`
+                          : job.status === 'failed' ? 'misslyckades'
+                          : 'renderar...'}
+                      </span>
+                    </div>
+                  ))}
+                  {videoStep !== 'done' && (
+                    <p style={{ fontSize: 11, color: t.textMuted, marginTop: 8 }}>
+                      Videor renderas i bakgrunden. Du kan redan granska kursen och ladda ner SCORM — videolänkar läggs till automatiskt när de är klara.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* AI Edit */}
               <div style={{ margin: '24px 28px 0', borderTop: `1px solid ${t.borderLight}`, paddingTop: 20 }}>
