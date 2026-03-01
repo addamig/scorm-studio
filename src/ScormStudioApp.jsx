@@ -388,6 +388,8 @@ export default function ScormStudioApp() {
   const [aiEditPrompt, setAiEditPrompt] = useState('');
   const [aiEditing, setAiEditing] = useState(false);
   const [aiEditSuccess, setAiEditSuccess] = useState('');
+  const [shareStatus, setShareStatus] = useState(''); // '' | 'sharing' | 'done' | 'error'
+  const [shareUrl, setShareUrl] = useState('');
 
   // ── HeyGen Video Avatar State ──
   const [useVideo, setUseVideo] = useState(false);
@@ -491,6 +493,36 @@ export default function ScormStudioApp() {
     window.location.hostname.includes('anthropic') ||
     window.parent !== window // iframe = likely artifact
   );
+
+  // ── Load shared course from URL if ?shared=...&blob=... ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const blobUrl = params.get('blob');
+    if (!blobUrl) return;
+
+    setGenProgress('Laddar delad kurs...');
+    setStep('generating');
+    fetch(blobUrl)
+      .then(r => r.json())
+      .then(data => {
+        if (data.course) {
+          setCourse(data.course);
+          if (data.videoJobs) {
+            setVideoJobs(data.videoJobs);
+            setVideoStep('done');
+          }
+          setStep('review');
+          // Clean URL
+          window.history.replaceState({}, '', window.location.pathname);
+        } else {
+          throw new Error('Ingen kurs i länken.');
+        }
+      })
+      .catch(err => {
+        setError('Kunde inte ladda delad kurs: ' + err.message);
+        setStep('describe');
+      });
+  }, []);
 
   // Helper: make AI call via server proxy (standalone) or direct Anthropic (artifact)
   const callClaude = useCallback(async (system, userMessage, options = {}) => {
@@ -1381,7 +1413,7 @@ export default function ScormStudioApp() {
                   <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, fontWeight: 400, marginBottom: 6, letterSpacing: '-0.01em' }}>{course.title}</h2>
                   <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.5 }}>{course.description}</p>
                 </div>
-                <button onClick={() => { setStep('describe'); setCourse(null); setVideoJobs([]); setVideoStep(''); setEditHistory([]); }} style={{ ...btnSecondary, padding: '8px 16px', fontSize: 12 }}>
+                <button onClick={() => { setStep('describe'); setCourse(null); setVideoJobs([]); setVideoStep(''); setEditHistory([]); setShareUrl(''); setShareStatus(''); }} style={{ ...btnSecondary, padding: '8px 16px', fontSize: 12 }}>
                   ← Börja om
                 </button>
               </div>
@@ -1549,8 +1581,32 @@ export default function ScormStudioApp() {
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10, padding: '24px 28px', flexWrap: 'wrap' }}>
-                <button onClick={handlePreview} style={{ ...btnSecondary, flex: '1 1 160px', textAlign: 'center' }}>
+                <button onClick={handlePreview} style={{ ...btnSecondary, flex: '1 1 120px', textAlign: 'center' }}>
                   Förhandsgranska
+                </button>
+                <button onClick={async () => {
+                  setShareStatus('sharing');
+                  try {
+                    const resp = await fetch('/api/share', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ course, videoJobs })
+                    });
+                    const data = await resp.json();
+                    if (data.error) throw new Error(data.error);
+                    setShareUrl(data.shareUrl);
+                    setShareStatus('done');
+                    navigator.clipboard?.writeText(data.shareUrl).catch(() => {});
+                  } catch (err) {
+                    setShareStatus('error');
+                    setError('Kunde inte dela: ' + err.message);
+                  }
+                }} disabled={shareStatus === 'sharing'}
+                  style={{ ...btnSecondary, flex: '1 1 120px', textAlign: 'center',
+                    background: shareStatus === 'done' ? t.successBg : undefined,
+                    borderColor: shareStatus === 'done' ? t.successBorder : undefined,
+                    color: shareStatus === 'done' ? t.successText : undefined }}>
+                  {shareStatus === 'sharing' ? '⏳ Delar...' : shareStatus === 'done' ? '✅ Länk kopierad!' : '🔗 Dela kurs'}
                 </button>
                 <button onClick={handleDownloadScorm} disabled={downloading}
                   style={{ ...btnPrimary(false), flex: '1 1 200px', textAlign: 'center',
@@ -1564,6 +1620,21 @@ export default function ScormStudioApp() {
                   {downloading ? 'Skapar paket...' : 'Ladda ner SCORM (.zip) →'}
                 </button>
               </div>
+              {shareUrl && (
+                <div style={{ padding: '0 28px 20px' }}>
+                  <div style={{ padding: '10px 14px', background: t.bgSoft, borderRadius: 8, border: `1px solid ${t.borderLight}`,
+                    display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input readOnly value={shareUrl} style={{ flex: 1, background: 'none', border: 'none',
+                      color: t.text, fontSize: 12, fontFamily: 'monospace', outline: 'none' }}
+                      onClick={e => e.target.select()} />
+                    <button onClick={() => { navigator.clipboard?.writeText(shareUrl); setShareStatus('done'); }}
+                      style={{ padding: '4px 10px', fontSize: 11, border: `1px solid ${t.border}`,
+                        borderRadius: 6, background: t.bgCard, color: t.text, cursor: 'pointer' }}>
+                      Kopiera
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1584,7 +1655,7 @@ export default function ScormStudioApp() {
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={() => setStep('review')} style={btnSecondary}>← Kursöversikt</button>
-              <button onClick={() => { setStep('describe'); setCourse(null); setPrompt(''); setVideoJobs([]); setVideoStep(''); setEditHistory([]); }} style={btnPrimary(false)}>Skapa ny utbildning →</button>
+              <button onClick={() => { setStep('describe'); setCourse(null); setPrompt(''); setVideoJobs([]); setVideoStep(''); setEditHistory([]); setShareUrl(''); setShareStatus(''); }} style={btnPrimary(false)}>Skapa ny utbildning →</button>
             </div>
           </div>
         )}
