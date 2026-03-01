@@ -462,7 +462,7 @@ export default function ScormStudioApp() {
 
   // ── HeyGen: Generate videos for course modules ──
   // NOTE: testMode = true → only says the module title (saves HeyGen credits)
-  const testMode = true;
+  const testMode = false;
 
   const startVideoGeneration = useCallback(async (courseData) => {
     if (!selectedAvatar || !selectedVoice || !courseData) return [];
