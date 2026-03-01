@@ -861,7 +861,20 @@ export default function ScormStudioApp() {
     setAiEditing(false);
   }, [aiEditPrompt, course]);
 
-  const allSlides = course ? course.modules.flatMap(m => (m.slides||[]).map((s, si) => ({...s, moduleName: m.title, moduleType: m.type, moduleVideoUrl: si === 0 ? m.video_url : null}))) : [];
+  const allSlides = course ? course.modules.flatMap(m => {
+    let videoAssigned = false;
+    return (m.slides||[]).map((s, si) => {
+      // Attach video to the first title slide, or first slide if no title exists
+      let videoUrl = null;
+      if (m.video_url && !videoAssigned) {
+        if (s.type === 'title' || si === 0) {
+          videoUrl = m.video_url;
+          videoAssigned = true;
+        }
+      }
+      return {...s, moduleName: m.title, moduleType: m.type, moduleVideoUrl: videoUrl};
+    });
+  }) : [];
   const quizModule = course ? course.modules.find(m => m.type === 'quiz') : null;
   const passingScore = quizModule?.passing_score || 80;
 
@@ -1298,21 +1311,30 @@ export default function ScormStudioApp() {
                   ))}
                   {videoStep === 'done' && videoJobs.some(j => j.status === 'completed') && (
                     <button onClick={() => {
+                      const completedJobs = videoJobs.filter(j => j.status === 'completed' && j.videoUrl);
+                      console.log('[HeyGen] Attaching videos. Jobs:', completedJobs.map(j => `idx=${j.moduleIndex} "${j.title}" url=${j.videoUrl?.substring(0, 60)}...`));
                       setCourse(prev => {
                         if (!prev) return prev;
                         const updated = JSON.parse(JSON.stringify(prev));
-                        for (const job of videoJobs) {
-                          if (job.status === 'completed' && job.videoUrl && updated.modules[job.moduleIndex]) {
+                        console.log('[HeyGen] Modules before:', updated.modules.map((m, i) => `${i}:"${m.title}" video=${!!m.video_url}`));
+                        for (const job of completedJobs) {
+                          if (updated.modules[job.moduleIndex]) {
                             updated.modules[job.moduleIndex].video_url = job.videoUrl;
                             updated.modules[job.moduleIndex].video_duration = job.duration;
+                            console.log(`[HeyGen] → Set module ${job.moduleIndex} "${updated.modules[job.moduleIndex].title}" video_url`);
+                          } else {
+                            console.log(`[HeyGen] ⚠ Module index ${job.moduleIndex} not found! Total modules: ${updated.modules.length}`);
                           }
                         }
+                        console.log('[HeyGen] Modules after:', updated.modules.map((m, i) => `${i}:"${m.title}" video=${!!m.video_url}`));
                         return updated;
                       });
+                      setAiEditSuccess('✅ Videor kopplade!');
+                      setTimeout(() => setAiEditSuccess(''), 3000);
                     }}
                       style={{ marginTop: 12, padding: '10px 20px', fontSize: 13, fontWeight: 600, border: 'none',
                         borderRadius: 8, background: '#7c3aed', color: '#fff', cursor: 'pointer', width: '100%' }}>
-                      🎬 Koppla videor till kursen
+                      🎬 Koppla videor till kursen ({videoJobs.filter(j => j.status === 'completed').length} st)
                     </button>
                   )}
                   {videoStep !== 'done' && (
@@ -1491,7 +1513,16 @@ export default function ScormStudioApp() {
                 {slide.type === 'content' && (
                   <div>
                     <div style={{ marginBottom: 20 }}>
-                      <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
+                      {slide.moduleVideoUrl ? (
+                        <div style={{ maxWidth: 560, margin: '0 auto', borderRadius: 12, overflow: 'hidden',
+                          boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)' }}>
+                          <video controls style={{ width: '100%', display: 'block' }}>
+                            <source src={slide.moduleVideoUrl} type="video/mp4" />
+                          </video>
+                        </div>
+                      ) : (
+                        <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
+                      )}
                     </div>
                     <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 16 }}>{slide.title}</h2>
                     {renderBlocks(slide.blocks)}
