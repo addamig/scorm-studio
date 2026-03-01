@@ -1296,9 +1296,28 @@ export default function ScormStudioApp() {
                       </span>
                     </div>
                   ))}
+                  {videoStep === 'done' && videoJobs.some(j => j.status === 'completed') && (
+                    <button onClick={() => {
+                      setCourse(prev => {
+                        if (!prev) return prev;
+                        const updated = JSON.parse(JSON.stringify(prev));
+                        for (const job of videoJobs) {
+                          if (job.status === 'completed' && job.videoUrl && updated.modules[job.moduleIndex]) {
+                            updated.modules[job.moduleIndex].video_url = job.videoUrl;
+                            updated.modules[job.moduleIndex].video_duration = job.duration;
+                          }
+                        }
+                        return updated;
+                      });
+                    }}
+                      style={{ marginTop: 12, padding: '10px 20px', fontSize: 13, fontWeight: 600, border: 'none',
+                        borderRadius: 8, background: '#7c3aed', color: '#fff', cursor: 'pointer', width: '100%' }}>
+                      🎬 Koppla videor till kursen
+                    </button>
+                  )}
                   {videoStep !== 'done' && (
                     <p style={{ fontSize: 11, color: t.textMuted, marginTop: 8 }}>
-                      Videor renderas i bakgrunden. Du kan redan granska kursen och ladda ner SCORM — videolänkar läggs till automatiskt när de är klara.
+                      Videor renderas i bakgrunden. När alla är klara, klicka "Koppla videor" för att lägga till dem i kursen.
                     </p>
                   )}
                 </div>
