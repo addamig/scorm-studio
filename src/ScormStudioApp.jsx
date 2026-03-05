@@ -1284,186 +1284,226 @@ export default function ScormStudioApp() {
 
         {/* ═══ STEP: DESCRIBE ═══ */}
         {step === 'describe' && (
-          <div style={{ animation: 'fadeUp .5s ease' }}>
+          <div style={{ animation: 'fadeUp .6s cubic-bezier(.4,0,.2,1)' }}>
             {/* Hero */}
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <div style={{ display: 'inline-block', padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                background: isDark ? 'rgba(129,140,248,0.08)' : 'rgba(37,99,235,0.06)',
-                color: isDark ? '#a5b4fc' : '#2563eb', letterSpacing: '0.04em', marginBottom: 16,
-                border: `1px solid ${isDark ? 'rgba(129,140,248,0.12)' : 'rgba(37,99,235,0.1)'}` }}>
-                AI-POWERED KURSSKAPARE
+            <div style={{ textAlign: 'center', marginBottom: 48, paddingTop: 16 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 18px', borderRadius: 50, fontSize: 12, fontWeight: 600,
+                background: isDark ? 'linear-gradient(135deg, rgba(129,140,248,0.1), rgba(168,85,247,0.08))' : 'linear-gradient(135deg, rgba(37,99,235,0.06), rgba(168,85,247,0.05))',
+                color: isDark ? '#c4b5fd' : '#6d28d9', letterSpacing: '0.03em', marginBottom: 24,
+                border: `1px solid ${isDark ? 'rgba(167,139,250,0.15)' : 'rgba(109,40,217,0.1)'}` }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', animation: 'pulse 2s infinite' }} />
+                Powered by AI
               </div>
-              <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 42, fontWeight: 400, lineHeight: 1.15, marginBottom: 14, letterSpacing: '-0.03em' }}>
-                Skapa professionella<br/>e-utbildningar med AI
+              <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 50, fontWeight: 400, lineHeight: 1.08, marginBottom: 18, letterSpacing: '-0.04em',
+                background: isDark ? 'linear-gradient(160deg, #f1f2f4 20%, #a5b4fc 60%, #c4b5fd 90%)' : 'linear-gradient(160deg, #111827 30%, #2563eb 70%, #7c3aed 100%)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Professionella<br/>e-utbildningar<br/>på minuter
               </h2>
-              <p style={{ fontSize: 16, color: t.textMuted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
-                Beskriv vad du behöver. AI:n bygger kursstruktur, scenarion och quiz — redo att exportera som SCORM.
+              <p style={{ fontSize: 17, color: t.textMuted, maxWidth: 500, margin: '0 auto', lineHeight: 1.7 }}>
+                Beskriv din kurs. AI:n bygger struktur, scenarion, quiz och videopresentatör — redo för ditt LMS.
               </p>
             </div>
 
-            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 20, padding: 0, overflow: 'hidden',
-              boxShadow: isDark ? '0 8px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03)' : '0 4px 32px rgba(0,0,0,0.06)' }}>
+            {/* Feature pills */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 40, flexWrap: 'wrap' }}>
+              {[
+                { icon: '⚡', label: 'SCORM 2004' },
+                { icon: '🎬', label: 'AI-video' },
+                { icon: '📸', label: 'Fotobilder' },
+                { icon: '🧠', label: 'Quiz & scenarion' },
+              ].map(f => (
+                <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
+                  borderRadius: 12, fontSize: 12, fontWeight: 600, color: t.textSecondary,
+                  background: t.bgCard, border: `1px solid ${t.borderLight}`,
+                  backdropFilter: 'blur(8px)' }}>
+                  <span>{f.icon}</span> {f.label}
+                </div>
+              ))}
+            </div>
 
-              <div style={{ padding: '32px 32px 0' }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, display: 'block', marginBottom: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Beskriv din utbildning
-                </label>
+            {/* Main card */}
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 24, overflow: 'hidden',
+              boxShadow: isDark 
+                ? '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.05)' 
+                : '0 24px 64px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+
+              {/* Prompt */}
+              <div style={{ padding: '36px 36px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10,
+                    background: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(37,99,235,0.06)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✍️</div>
+                  <label style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Beskriv din utbildning</label>
+                </div>
                 <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
                   placeholder="T.ex: En 20-minuters brandskyddsutbildning för kontorsanställda. Ska täcka utrymningsvägar, brandsläckare och larmrutiner. Quiz med 80% godkäntgräns."
-                  style={{ width: '100%', minHeight: 140, background: t.bgInput, border: `1.5px solid ${t.borderInput}`,
-                    borderRadius: 14, padding: '18px 20px', fontSize: 15, lineHeight: 1.7, color: t.text,
-                    fontFamily: 'inherit', resize: 'vertical', transition: 'border-color .25s, box-shadow .25s' }} />
+                  style={{ width: '100%', minHeight: 140, background: isDark ? 'rgba(0,0,0,0.25)' : '#f7f8fa',
+                    border: `1.5px solid ${t.borderInput}`, borderRadius: 16, padding: '20px 22px', fontSize: 15,
+                    lineHeight: 1.7, color: t.text, fontFamily: 'inherit', resize: 'vertical',
+                    transition: 'border-color .25s, box-shadow .25s' }} />
 
-                <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   {[
-                    { label: 'Brandskydd', emoji: '🔥' },
-                    { label: 'GDPR', emoji: '🔒' },
-                    { label: 'Arbetsmiljö', emoji: '🏗️' },
-                    { label: 'Onboarding', emoji: '👋' },
-                    { label: 'IT-säkerhet', emoji: '💻' },
-                  ].map(({ label, emoji }) => (
-                    <button key={label} onClick={() => setPrompt(p => p ? p + '. Inkludera avsnitt om ' + label.toLowerCase() : label + '-utbildning, 20 minuter, quiz med 80% godkäntgräns')}
-                      style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, background: t.accentSoft,
-                        border: `1px solid ${t.accentBorder}`, borderRadius: 8, color: t.accentText, cursor: 'pointer',
-                        transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 13 }}>{emoji}</span> {label}
+                    { label: 'Brandskydd', emoji: '🔥', p: 'Brandskyddsutbildning, 20 minuter. Täck utrymning, brandsläckare, larmrutiner. Quiz med 80% godkänt.' },
+                    { label: 'GDPR', emoji: '🔒', p: 'GDPR-utbildning, 20 minuter. Personuppgifter, samtycke, dataskyddsförordningen. Quiz med 80% godkänt.' },
+                    { label: 'Arbetsmiljö', emoji: '🏗️', p: 'Arbetsmiljöutbildning, 20 min. Ergonomi, psykosocial hälsa, riskbedömning. Quiz 80%.' },
+                    { label: 'Onboarding', emoji: '👋', p: 'Onboarding för nyanställda, 15 min. Företagskultur, rutiner, IT-system. Quiz 80%.' },
+                    { label: 'IT-säkerhet', emoji: '🛡️', p: 'IT-säkerhet, 20 min. Phishing, lösenord, säker e-post, 2FA. Quiz 80%.' },
+                  ].map(({ label, emoji, p: pp }) => (
+                    <button key={label} onClick={() => setPrompt(pp)}
+                      style={{ padding: '8px 14px', fontSize: 13, fontWeight: 500, background: 'transparent',
+                        border: `1.5px solid ${t.borderLight}`, borderRadius: 10, color: t.textSecondary, cursor: 'pointer',
+                        transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{emoji}</span> {label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Divider */}
-              <div style={{ margin: '24px 28px 0', borderTop: `1px solid ${t.borderLight}` }} />
-
-              {/* Theme selector */}
-              <div style={{ padding: '20px 28px' }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Färgtema för SCORM-paketet
-                </label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {themes.map((th, i) => (
-                    <button key={th.name} onClick={() => setSelectedTheme(i)}
-                      style={{ padding: '10px 16px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10,
-                        background: selectedTheme === i ? t.accentSoft : t.bgInput,
-                        border: `1.5px solid ${selectedTheme === i ? t.accent : t.borderLight}`,
-                        borderRadius: 10, color: selectedTheme === i ? t.accentText : t.textSecondary, cursor: 'pointer', transition: 'all .2s' }}>
-                      <div style={{ display: 'flex', gap: 3 }}>
-                        <div style={{ width: 14, height: 14, borderRadius: 4, background: th.primary }} />
-                        <div style={{ width: 14, height: 14, borderRadius: 4, background: th.accent }} />
-                      </div>
-                      {th.name}
-                    </button>
-                  ))}
+              {/* Settings */}
+              <div style={{ margin: '28px 36px 0', padding: '24px 0 0', borderTop: `1px solid ${t.borderLight}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10,
+                    background: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(37,99,235,0.06)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⚙️</div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Inställningar</span>
                 </div>
-              </div>
 
-              {/* Generate button area */}
-              <div style={{ padding: '0 28px 28px' }}>
-                {/* Image generation toggle */}
+                {/* Theme */}
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, display: 'block', marginBottom: 10,
+                    letterSpacing: '0.06em', textTransform: 'uppercase' }}>Färgtema</label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {themes.map((th, i) => (
+                      <button key={th.name} onClick={() => setSelectedTheme(i)}
+                        style={{ padding: '10px 18px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10,
+                          background: selectedTheme === i ? (isDark ? 'rgba(129,140,248,0.1)' : 'rgba(37,99,235,0.06)') : 'transparent',
+                          border: `1.5px solid ${selectedTheme === i ? t.accent : t.borderLight}`,
+                          borderRadius: 12, color: selectedTheme === i ? t.accentText : t.textSecondary, cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', gap: 3 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: 5, background: th.primary }} />
+                          <div style={{ width: 16, height: 16, borderRadius: 5, background: th.accent }} />
+                        </div>
+                        {th.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Toggles */}
                 {!isArtifact && (
-                  <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button onClick={() => setGenerateImages(!generateImages)}
-                      style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                        background: generateImages ? t.accent : t.bgInput,
-                        position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
-                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                        position: 'absolute', top: 3, left: generateImages ? 23 : 3,
-                        transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                    </button>
-                    <div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>AI-genererade bilder</span>
-                      <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 8 }}>
-                        {generateImages ? 'På — bilder skapas för intro-slides via Nano Banana' : 'Av — använder SVG-illustrationer'}
-                      </span>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 8 }}>
+                    {[
+                      { on: generateImages, toggle: () => setGenerateImages(!generateImages), icon: '📸', title: 'AI-genererade bilder',
+                        desc: generateImages ? 'Fotorealistiska bilder på varje titelslide' : 'Använder SVG-illustrationer',
+                        color: '#818cf8' },
+                      { on: useVideo, toggle: () => setUseVideo(!useVideo), icon: '🎬', title: 'AI-videopresentatör',
+                        desc: useVideo ? 'HeyGen-avatar presenterar varje modul' : 'Ingen videopresentatör',
+                        color: '#a78bfa' },
+                    ].map(({ on, toggle, icon, title, desc, color }) => (
+                      <div key={title} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 16,
+                        background: on ? `${color}08` : 'transparent',
+                        border: `1px solid ${on ? `${color}25` : t.borderLight}`, transition: 'all .3s' }}>
+                        <button onClick={toggle}
+                          style={{ width: 50, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer',
+                            background: on ? `linear-gradient(135deg, ${color}, ${color}cc)` : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'),
+                            position: 'relative', transition: 'background .3s', flexShrink: 0 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff',
+                            position: 'absolute', top: 3, left: on ? 25 : 3,
+                            transition: 'left .25s cubic-bezier(.4,0,.2,1)', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }} />
+                        </button>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{icon} {title}</span>
+                          <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{desc}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                {/* Video avatar toggle */}
-                {!isArtifact && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: useVideo ? 14 : 0 }}>
-                      <button onClick={() => setUseVideo(!useVideo)}
-                        style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                          background: useVideo ? '#7c3aed' : t.bgInput,
-                          position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                          position: 'absolute', top: 3, left: useVideo ? 23 : 3,
-                          transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                      </button>
-                      <div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>AI-videoavatar</span>
-                        <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 8 }}>
-                          {useVideo ? 'På — HeyGen genererar video per modul' : 'Av — ingen videopresentatör'}
-                        </span>
+                {/* Avatar picker */}
+                {useVideo && !isArtifact && (
+                  <div style={{ background: isDark ? 'rgba(0,0,0,0.25)' : '#f7f8fa', border: `1px solid ${t.borderLight}`,
+                    borderRadius: 18, padding: 22, marginTop: 12 }}>
+                    {heygenLoading && (
+                      <div style={{ textAlign: 'center', padding: 24 }}>
+                        <div style={{ width: 28, height: 28, border: `2.5px solid ${t.borderLight}`, borderTopColor: '#a78bfa',
+                          borderRadius: '50%', animation: 'spin .8s linear infinite', margin: '0 auto 14px' }} />
+                        <p style={{ fontSize: 13, color: t.textMuted }}>Hämtar avatarer och röster...</p>
                       </div>
-                    </div>
-
-                    {/* Avatar & Voice picker */}
-                    {useVideo && (
-                      <div style={{ background: t.bgSoft, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
-                        {heygenLoading && (
-                          <p style={{ fontSize: 13, color: t.textMuted }}>Hämtar avatarer och röster från HeyGen...</p>
+                    )}
+                    {heygenError && <p style={{ fontSize: 13, color: t.errorText, padding: 8 }}>{heygenError}</p>}
+                    {!heygenLoading && !heygenError && (
+                      <>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em',
+                          textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>Välj avatar</label>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 22, maxHeight: 220, overflowY: 'auto' }}>
+                          {heygenAvatars.slice(0, 12).map(a => (
+                            <button key={a.avatar_id} onClick={() => setSelectedAvatar(a.avatar_id)}
+                              style={{ width: 90, padding: 8, border: `2px solid ${selectedAvatar === a.avatar_id ? '#a78bfa' : t.borderLight}`,
+                                borderRadius: 14, background: selectedAvatar === a.avatar_id ? 'rgba(167,139,250,0.1)' : t.bgCard,
+                                cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                              {a.preview ? (
+                                <img src={a.preview} alt={a.name} style={{ width: 62, height: 62, borderRadius: 12, objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 62, height: 62, borderRadius: 12, background: t.bgInput,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>👤</div>
+                              )}
+                              <span style={{ fontSize: 10, fontWeight: 500, color: t.textSecondary, textAlign: 'center',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{a.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em',
+                          textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>Välj röst</label>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 160, overflowY: 'auto' }}>
+                          {heygenVoices.map(v => (
+                            <button key={v.voice_id} onClick={() => setSelectedVoice(v.voice_id)}
+                              style={{ padding: '10px 14px', fontSize: 12, border: `1.5px solid ${selectedVoice === v.voice_id ? '#a78bfa' : t.borderLight}`,
+                                borderRadius: 10, background: selectedVoice === v.voice_id ? 'rgba(167,139,250,0.1)' : t.bgCard,
+                                cursor: 'pointer', color: t.text }}>
+                              <span style={{ fontWeight: 600 }}>{v.name}</span>
+                              <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 6 }}>{v.language}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {heygenAvatars.length === 0 && (
+                          <p style={{ fontSize: 12, color: t.textMuted, marginTop: 14 }}>Kontrollera HEYGEN_API_KEY i Vercel.</p>
                         )}
-                        {heygenError && (
-                          <p style={{ fontSize: 13, color: t.errorText }}>{heygenError}</p>
-                        )}
-
-                        {!heygenLoading && !heygenError && (
-                          <>
-                            {/* Avatars */}
-                            <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em',
-                              textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Välj avatar</label>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, maxHeight: 200, overflowY: 'auto' }}>
-                              {heygenAvatars.slice(0, 12).map(a => (
-                                <button key={a.avatar_id} onClick={() => setSelectedAvatar(a.avatar_id)}
-                                  style={{ width: 80, padding: 6, border: `2px solid ${selectedAvatar === a.avatar_id ? '#7c3aed' : t.border}`,
-                                    borderRadius: 10, background: selectedAvatar === a.avatar_id ? 'rgba(124,58,237,0.08)' : t.bgCard,
-                                    cursor: 'pointer', transition: 'all .2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                  {a.preview ? (
-                                    <img src={a.preview} alt={a.name} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover' }} />
-                                  ) : (
-                                    <div style={{ width: 56, height: 56, borderRadius: 8, background: t.bgInput, display: 'flex',
-                                      alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>👤</div>
-                                  )}
-                                  <span style={{ fontSize: 10, color: t.textSecondary, textAlign: 'center',
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-                                    {a.name}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Voices */}
-                            <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, letterSpacing: '0.04em',
-                              textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Välj röst</label>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 150, overflowY: 'auto' }}>
-                              {heygenVoices.map(v => (
-                                <button key={v.voice_id} onClick={() => setSelectedVoice(v.voice_id)}
-                                  style={{ padding: '8px 12px', fontSize: 12, border: `1.5px solid ${selectedVoice === v.voice_id ? '#7c3aed' : t.border}`,
-                                    borderRadius: 8, background: selectedVoice === v.voice_id ? 'rgba(124,58,237,0.08)' : t.bgCard,
-                                    cursor: 'pointer', transition: 'all .2s', color: t.text }}>
-                                  <span style={{ fontWeight: 500 }}>{v.name}</span>
-                                  <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 6 }}>{v.language}</span>
-                                </button>
-                              ))}
-                            </div>
-
-                            {heygenAvatars.length === 0 && (
-                              <p style={{ fontSize: 12, color: t.textMuted, marginTop: 8 }}>
-                                Inga avatarer hittades. Kontrollera att HEYGEN_API_KEY är konfigurerad i Vercel.
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
+              </div>
 
-                <button onClick={generateCourse} disabled={!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice))} style={btnPrimary(!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice)))}>
-                  Generera utbildning {generateImages ? '(med bilder) ' : ''}{useVideo ? '(med video) ' : ''}→
+              {/* Generate button */}
+              <div style={{ padding: '32px 36px 40px' }}>
+                <button onClick={generateCourse} disabled={!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice))}
+                  style={{
+                    width: '100%', padding: '20px 32px', fontSize: 16, fontWeight: 700, borderRadius: 16,
+                    border: 'none', cursor: (!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice))) ? 'default' : 'pointer',
+                    color: '#fff', letterSpacing: '-0.01em',
+                    opacity: (!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice))) ? 0.3 : 1,
+                    background: (!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice)))
+                      ? (isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0')
+                      : isDark
+                        ? 'linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #7c3aed 100%)'
+                        : 'linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%)',
+                    boxShadow: (!prompt.trim() || (useVideo && (!selectedAvatar || !selectedVoice)))
+                      ? 'none'
+                      : isDark
+                        ? '0 8px 32px rgba(129,140,248,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+                        : '0 8px 32px rgba(37,99,235,0.3)',
+                    transition: 'all .3s cubic-bezier(.4,0,.2,1)',
+                  }}>
+                  Skapa utbildning →
                 </button>
+                {(generateImages || useVideo) && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 14 }}>
+                    {generateImages && <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>📸 Med bilder</span>}
+                    {useVideo && <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>🎬 Med video</span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
