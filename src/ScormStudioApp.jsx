@@ -806,19 +806,19 @@ export default function ScormStudioApp() {
 
   // ── Premium Design Tokens ──
   const t = isDark ? {
-    bg: '#08090d',
-    bgSoft: 'rgba(255,255,255,0.025)',
-    bgCard: 'rgba(255,255,255,0.035)',
-    bgCardHover: 'rgba(255,255,255,0.055)',
-    bgInput: 'rgba(255,255,255,0.04)',
+    bg: '#0a0b10',
+    bgSoft: 'rgba(255,255,255,0.028)',
+    bgCard: 'rgba(255,255,255,0.04)',
+    bgCardHover: 'rgba(255,255,255,0.06)',
+    bgInput: 'rgba(255,255,255,0.045)',
     bgHover: 'rgba(99,102,241,0.06)',
-    border: 'rgba(255,255,255,0.06)',
+    border: 'rgba(255,255,255,0.07)',
     borderLight: 'rgba(255,255,255,0.04)',
     borderHover: 'rgba(99,102,241,0.25)',
-    borderInput: 'rgba(255,255,255,0.08)',
-    text: '#f0f1f3',
-    textSecondary: '#a0a6b4',
-    textMuted: '#5e6578',
+    borderInput: 'rgba(255,255,255,0.1)',
+    text: '#f1f2f4',
+    textSecondary: '#a3a9b8',
+    textMuted: '#5f6678',
     textDim: '#3d4354',
     accent: '#818cf8',
     accentSoft: 'rgba(129,140,248,0.08)',
@@ -1096,26 +1096,27 @@ export default function ScormStudioApp() {
 
   // Shared button style helper
   const btnPrimary = (disabled) => ({
-    padding: '13px 28px', fontSize: 14, fontWeight: 600, letterSpacing: '0.01em',
-    background: disabled ? t.btnSecondaryBg : `linear-gradient(135deg, ${t.accent}, ${isDark ? '#6366f1' : '#1d4ed8'})`,
-    border: 'none', borderRadius: 10, color: '#fff', cursor: disabled ? 'default' : 'pointer',
-    opacity: disabled ? 0.35 : 1, transition: 'all .25s ease',
-    boxShadow: disabled ? 'none' : `0 2px 12px ${isDark ? 'rgba(129,140,248,0.15)' : 'rgba(37,99,235,0.2)'}`,
+    padding: '14px 32px', fontSize: 14, fontWeight: 600, letterSpacing: '0.01em',
+    background: disabled ? t.btnSecondaryBg : `linear-gradient(135deg, ${t.accent}, ${isDark ? '#a78bfa' : '#1d4ed8'})`,
+    border: 'none', borderRadius: 12, color: '#fff', cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.3 : 1, transition: 'all .25s cubic-bezier(.4,0,.2,1)',
+    boxShadow: disabled ? 'none' : `0 4px 16px ${isDark ? 'rgba(129,140,248,0.2)' : 'rgba(37,99,235,0.2)'}`,
   });
 
   const btnSecondary = {
-    padding: '13px 24px', fontSize: 14, fontWeight: 600,
-    background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10,
-    color: t.text, cursor: 'pointer', transition: 'all .25s ease',
+    padding: '14px 24px', fontSize: 14, fontWeight: 600,
+    background: t.bgCard, border: `1.5px solid ${t.border}`, borderRadius: 12,
+    color: t.text, cursor: 'pointer', transition: 'all .25s cubic-bezier(.4,0,.2,1)',
   };
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, color: t.text,
-      fontFamily: "'DM Sans', 'General Sans', -apple-system, sans-serif",
-      transition: 'background .4s ease, color .4s ease', position: 'relative', overflow: 'hidden' }}>
+      fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+      transition: 'background .4s ease, color .4s ease', position: 'relative', overflow: 'hidden',
+      WebkitFontSmoothing: 'antialiased' }}>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Instrument+Serif&display=swap');
         @keyframes fadeUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
         @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes spin { to { transform:rotate(360deg) } }
@@ -1123,9 +1124,12 @@ export default function ScormStudioApp() {
         @keyframes pulse { 0%,100% { opacity:.4 } 50% { opacity:1 } }
         @keyframes float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-6px) } }
         @keyframes glow { 0%,100% { box-shadow: 0 0 20px rgba(129,140,248,0.1) } 50% { box-shadow: 0 0 40px rgba(129,140,248,0.2) } }
+        @keyframes gradientShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
         * { box-sizing:border-box; margin:0; padding:0 }
         textarea:focus, input:focus, button:focus { outline:none }
-        button:hover { filter: brightness(1.05) }
+        button { transition: all .2s ease }
+        button:hover { filter: brightness(1.06) }
+        button:active { transform: scale(0.98) }
         ::-webkit-scrollbar { width:5px } ::-webkit-scrollbar-track { background:transparent }
         ::-webkit-scrollbar-thumb { background:${t.scrollbar}; border-radius:3px }
         ::selection { background: ${isDark ? 'rgba(129,140,248,0.3)' : 'rgba(37,99,235,0.15)'} }
@@ -1133,36 +1137,35 @@ export default function ScormStudioApp() {
 
       {/* Ambient background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '50%', height: '50%',
-          background: isDark ? 'radial-gradient(ellipse, rgba(99,102,241,0.06) 0%, transparent 70%)' : 'radial-gradient(ellipse, rgba(37,99,235,0.03) 0%, transparent 70%)',
-          filter: 'blur(40px)' }} />
-        <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '50%', height: '50%',
-          background: isDark ? 'radial-gradient(ellipse, rgba(6,182,212,0.04) 0%, transparent 70%)' : 'radial-gradient(ellipse, rgba(6,182,212,0.02) 0%, transparent 70%)',
-          filter: 'blur(40px)' }} />
-        {/* Subtle grid */}
-        <div style={{ position: 'absolute', inset: 0, opacity: isDark ? 0.015 : 0.025,
-          backgroundImage: `linear-gradient(${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px), linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)'} 1px, transparent 1px)`,
-          backgroundSize: '64px 64px' }} />
+        <div style={{ position: 'absolute', top: '-30%', left: '-15%', width: '60%', height: '60%',
+          background: isDark ? 'radial-gradient(ellipse, rgba(99,102,241,0.07) 0%, transparent 65%)' : 'radial-gradient(ellipse, rgba(37,99,235,0.04) 0%, transparent 65%)',
+          filter: 'blur(60px)', animation: 'gradientShift 20s ease infinite' }} />
+        <div style={{ position: 'absolute', bottom: '-30%', right: '-15%', width: '60%', height: '60%',
+          background: isDark ? 'radial-gradient(ellipse, rgba(168,85,247,0.05) 0%, transparent 65%)' : 'radial-gradient(ellipse, rgba(168,85,247,0.03) 0%, transparent 65%)',
+          filter: 'blur(60px)', animation: 'gradientShift 25s ease infinite reverse' }} />
+        <div style={{ position: 'absolute', top: '20%', right: '30%', width: '30%', height: '30%',
+          background: isDark ? 'radial-gradient(ellipse, rgba(6,182,212,0.04) 0%, transparent 65%)' : 'radial-gradient(ellipse, rgba(6,182,212,0.02) 0%, transparent 65%)',
+          filter: 'blur(50px)' }} />
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '48px 24px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* ═══ HEADER ═══ */}
-        <div style={{ marginBottom: 48, animation: 'fadeUp .6s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12,
-              background: `linear-gradient(135deg, ${t.accent}, ${isDark ? '#6366f1' : '#1d4ed8'})`,
+        <div style={{ marginBottom: 48, animation: 'fadeUp .6s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14,
+              background: `linear-gradient(135deg, ${t.accent}, ${isDark ? '#a78bfa' : '#1d4ed8'})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 4px 16px ${isDark ? 'rgba(129,140,248,0.2)' : 'rgba(37,99,235,0.15)'}` }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              boxShadow: `0 4px 20px ${isDark ? 'rgba(129,140,248,0.25)' : 'rgba(37,99,235,0.2)'}` }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 2h14a2 2 0 012 2v16a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/><path d="M9 22V2"/><path d="M14 7h4"/><path d="M14 11h4"/>
               </svg>
             </div>
             <div>
-              <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, fontWeight: 400, letterSpacing: '-0.01em', color: t.text }}>
+              <h1 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400, letterSpacing: '-0.02em', color: t.text }}>
                 SCORM Studio
               </h1>
-              <p style={{ fontSize: 12, color: t.textMuted, marginTop: 1, letterSpacing: '0.04em', fontWeight: 500 }}>AI-DRIVEN KURSBYGGARE</p>
+              <p style={{ fontSize: 11, color: t.textMuted, marginTop: 2, letterSpacing: '0.06em', fontWeight: 600, textTransform: 'uppercase' }}>AI-driven kursbyggare</p>
             </div>
           </div>
 
@@ -1213,7 +1216,7 @@ export default function ScormStudioApp() {
             <div style={{ padding: '20px 24px', borderBottom: `1px solid ${t.borderLight}`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: t.text }}>
+                <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 20, fontWeight: 400, color: t.text }}>
                   Mina sparade kurser
                 </h2>
                 <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
@@ -1283,27 +1286,33 @@ export default function ScormStudioApp() {
         {step === 'describe' && (
           <div style={{ animation: 'fadeUp .5s ease' }}>
             {/* Hero */}
-            <div style={{ textAlign: 'center', marginBottom: 36 }}>
-              <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 36, fontWeight: 400, lineHeight: 1.2, marginBottom: 10, letterSpacing: '-0.02em' }}>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <div style={{ display: 'inline-block', padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: isDark ? 'rgba(129,140,248,0.08)' : 'rgba(37,99,235,0.06)',
+                color: isDark ? '#a5b4fc' : '#2563eb', letterSpacing: '0.04em', marginBottom: 16,
+                border: `1px solid ${isDark ? 'rgba(129,140,248,0.12)' : 'rgba(37,99,235,0.1)'}` }}>
+                AI-POWERED KURSSKAPARE
+              </div>
+              <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 42, fontWeight: 400, lineHeight: 1.15, marginBottom: 14, letterSpacing: '-0.03em' }}>
                 Skapa professionella<br/>e-utbildningar med AI
               </h2>
-              <p style={{ fontSize: 15, color: t.textMuted, maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>
+              <p style={{ fontSize: 16, color: t.textMuted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
                 Beskriv vad du behöver. AI:n bygger kursstruktur, scenarion och quiz — redo att exportera som SCORM.
               </p>
             </div>
 
-            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: 0, overflow: 'hidden',
-              boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.3)' : '0 4px 24px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 20, padding: 0, overflow: 'hidden',
+              boxShadow: isDark ? '0 8px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03)' : '0 4px 32px rgba(0,0,0,0.06)' }}>
 
-              <div style={{ padding: '28px 28px 0' }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <div style={{ padding: '32px 32px 0' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, display: 'block', marginBottom: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Beskriv din utbildning
                 </label>
                 <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
                   placeholder="T.ex: En 20-minuters brandskyddsutbildning för kontorsanställda. Ska täcka utrymningsvägar, brandsläckare och larmrutiner. Quiz med 80% godkäntgräns."
-                  style={{ width: '100%', minHeight: 130, background: t.bgInput, border: `1px solid ${t.borderInput}`,
-                    borderRadius: 12, padding: '16px 18px', fontSize: 15, lineHeight: 1.65, color: t.text,
-                    fontFamily: 'inherit', resize: 'vertical', transition: 'border-color .2s' }} />
+                  style={{ width: '100%', minHeight: 140, background: t.bgInput, border: `1.5px solid ${t.borderInput}`,
+                    borderRadius: 14, padding: '18px 20px', fontSize: 15, lineHeight: 1.7, color: t.text,
+                    fontFamily: 'inherit', resize: 'vertical', transition: 'border-color .25s, box-shadow .25s' }} />
 
                 <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                   {[
@@ -1465,7 +1474,7 @@ export default function ScormStudioApp() {
           <div style={{ animation: 'fadeUp .5s ease', textAlign: 'center', padding: '100px 20px' }}>
             <div style={{ width: 52, height: 52, border: `3px solid ${t.borderLight}`, borderTopColor: t.accent,
               borderRadius: '50%', animation: 'spin .9s linear infinite, glow 2s ease infinite', margin: '0 auto 28px' }} />
-            <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 10 }}>Bygger din utbildning</h3>
+            <h3 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 10 }}>Bygger din utbildning</h3>
             <p style={{ fontSize: 14, color: t.textMuted, animation: 'pulse 2s infinite' }}>{genProgress}</p>
           </div>
         )}
@@ -1479,7 +1488,7 @@ export default function ScormStudioApp() {
               {/* Course header */}
               <div style={{ padding: '28px 28px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1 }}>
-                  <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, fontWeight: 400, marginBottom: 6, letterSpacing: '-0.01em' }}>{course.title}</h2>
+                  <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 26, fontWeight: 400, marginBottom: 6, letterSpacing: '-0.01em' }}>{course.title}</h2>
                   <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.5 }}>{course.description}</p>
                 </div>
                 <button onClick={() => { setStep('describe'); setCourse(null); setVideoJobs([]); setVideoStep(''); setEditHistory([]); setShareUrl(''); setShareStatus(''); }} style={{ ...btnSecondary, padding: '8px 16px', fontSize: 12 }}>
@@ -1718,7 +1727,7 @@ export default function ScormStudioApp() {
                 <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
               </svg>
             </div>
-            <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, fontWeight: 400, marginBottom: 8 }}>SCORM-paket nedladdat</h3>
+            <h3 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 24, fontWeight: 400, marginBottom: 8 }}>SCORM-paket nedladdat</h3>
             <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 28, maxWidth: 460, margin: '0 auto 28px', lineHeight: 1.6 }}>
               Ladda upp .zip-filen till ditt LMS – Learnster, Moodle, TalentLMS eller liknande.
             </p>
@@ -1799,7 +1808,7 @@ export default function ScormStudioApp() {
                         <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
                       </div>
                     )}
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, fontWeight: 400, marginBottom: 12 }}>{slide.title}</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 28, fontWeight: 400, marginBottom: 12 }}>{slide.title}</h2>
                     <p style={{ fontSize: 16, color: t.textMuted, maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>{slide.subtitle}</p>
                   </div>
                 )}
@@ -1819,7 +1828,7 @@ export default function ScormStudioApp() {
                         <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
                       )}
                     </div>
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 16 }}>{slide.title}</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 16 }}>{slide.title}</h2>
                     {renderBlocks(slide.blocks)}
                   </div>
                 )}
@@ -1830,7 +1839,7 @@ export default function ScormStudioApp() {
                     <div style={{ marginBottom: 16 }}>
                       <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
                     </div>
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 8 }}>{slide.title || slide.scenario_title}</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 8 }}>{slide.title || slide.scenario_title}</h2>
                     <p style={{ fontSize: 15, color: t.textSecondary, lineHeight: 1.75, marginBottom: 20 }}>{slide.scenario_description}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {(slide.options||[]).map((opt, oi) => {
@@ -1866,7 +1875,7 @@ export default function ScormStudioApp() {
                     <div style={{ marginBottom: 20 }}>
                       <SlideIllustration slide={slide} slideIndex={previewSlide} themeColor={course.theme?.primary || '#6366f1'} />
                     </div>
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 16 }}>{slide.title}</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 16 }}>{slide.title}</h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {(slide.points||[]).map((p, pi) => (
                         <div key={pi} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 14px',
@@ -1882,7 +1891,7 @@ export default function ScormStudioApp() {
                 {/* Quiz slide */}
                 {slide.type === 'quiz' && !quizResult && (
                   <div>
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 6 }}>{slide.title}</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 6 }}>{slide.title}</h2>
                     {slide.description && <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 20 }}>{slide.description}</p>}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                       {(slide.questions||[]).map((q, qi) => (
@@ -1913,7 +1922,7 @@ export default function ScormStudioApp() {
                 {/* Quiz result */}
                 {slide.type === 'quiz' && quizResult && (
                   <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                    <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400, marginBottom: 10 }}>Ditt resultat</h2>
+                    <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 22, fontWeight: 400, marginBottom: 10 }}>Ditt resultat</h2>
                     <div style={{ fontSize: 64, fontWeight: 800, color: quizResult.passed ? (isDark ? '#34d399' : '#059669') : (isDark ? '#fb7185' : '#e11d48'), margin: '16px 0', fontFamily: "'DM Sans', sans-serif" }}>
                       {quizResult.score}%
                     </div>
